@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+frontend/node_modules/
+
+# next.js
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+frontend/.turbo/
+
+# go
+backend/*.exe
+backend/habit-api
+backend/seed
+
+# environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# editors and os
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
