@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import type { Category } from "@/lib/types";
-import { cn, toneFor } from "@/lib/utils";
+import { cn, normalizePathname, toneFor } from "@/lib/utils";
 
 import { useAuth } from "./auth-provider";
 import { ThemeToggle } from "./theme-toggle";
@@ -31,7 +31,7 @@ const navItems = [
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
+  const pathname = normalizePathname(usePathname());
   const { user, logout } = useAuth();
   const { data: categories, error } = useSWR<Category[]>("/api/categories");
 
@@ -187,11 +187,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const pathname = usePathname();
+  const pathname = normalizePathname(usePathname());
   const router = useRouter();
   const { user, loading } = useAuth();
   const isLoginPage = pathname === "/login";
-
+  console.log(pathname)
   useEffect(() => {
     if (loading) {
       return;

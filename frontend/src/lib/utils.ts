@@ -2,6 +2,15 @@ export function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+// Next.js returns pathnames without the basePath, but with trailingSlash enabled
+// (static export for GitHub Pages) they look like "/login/" instead of "/login".
+export function normalizePathname(pathname: string) {
+  if (pathname.length <= 1) {
+    return pathname;
+  }
+  return pathname.replace(/\/+$/, "") || "/";
+}
+
 export function toISODate(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
