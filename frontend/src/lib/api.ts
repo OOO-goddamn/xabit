@@ -1,7 +1,7 @@
 import type { AuthResponse, CompletionInput, HabitInput, User } from "@/lib/types";
 import { authHeaders, clearToken } from "@/lib/session";
 
-const directBase = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
+const directBase = "http://80.78.243.87:8080"; //|| (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 console.log('directBase: ', directBase)
 export class ApiError extends Error {
   status: number;
