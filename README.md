@@ -121,16 +121,26 @@ GitHub Pages работает только по HTTPS, поэтому API тож
 
 1. A-запись поддомена (например `api.example.com`) должна указывать на IP сервера.
 2. Порты `80` и `443` должны быть открыты снаружи.
-3. На сервере:
+3. На сервере (Linux) задайте домен и запустите Caddy:
 
-```powershell
-$env:API_DOMAIN="api.example.com"
+```bash
+export API_DOMAIN=api.example.com
 docker compose --profile tls up -d --build
 ```
 
+Или сохраните домен в `.env`, чтобы не задавать переменную каждый раз:
+
+```bash
+cp .env.example .env
+# отредактируйте API_DOMAIN=api.example.com в .env
+docker compose --profile tls up -d --build
+```
+
+> На Windows используется PowerShell-синтаксис: `$env:API_DOMAIN="api.example.com"`. В bash `$env:...` не работает — будет ошибка `command not found`.
+
 Сертификат хранится в томе `caddy_data` и продлевается автоматически. Проверка:
 
-```powershell
+```bash
 curl https://api.example.com/api/health
 ```
 
@@ -142,7 +152,7 @@ curl https://api.example.com/api/health
 
 Логи Caddy и получение сертификата:
 
-```powershell
+```bash
 docker compose --profile tls logs -f caddy
 ```
 

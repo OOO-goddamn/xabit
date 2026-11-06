@@ -1,7 +1,7 @@
 import type { AuthResponse, CompletionInput, HabitInput, User } from "@/lib/types";
 import { authHeaders, clearToken } from "@/lib/session";
 
-const directBase = "https://xabit.nbfx.ru:8080"; //|| (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
+const directBase = "https://api.nbfx.ru"; //|| (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 console.log('directBase: ', directBase)
 export class ApiError extends Error {
   status: number;
