@@ -1,0 +1,7 @@
+.env
+*.exe
+habit-api
+habit-seed
+seed
+Dockerfile
+.dockerignore
