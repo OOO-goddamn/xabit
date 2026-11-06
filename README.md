@@ -10,15 +10,16 @@
 
 ## Быстрый старт
 
-### Всё в Docker
+### Бэкенд и база в Docker
 
 ```powershell
 docker compose up -d --build
 ```
 
-- фронтенд — `http://localhost:3000`
 - API — `http://localhost:8080`
 - PostgreSQL — `localhost:5432`
+
+Сервис фронтенда в `docker-compose.yml` закомментирован, потому что фронтенд публикуется на GitHub Pages. Чтобы поднять его локально в Docker, раскомментируйте блок `frontend` — приложение откроется на `http://localhost:3000`.
 
 Миграции применяются автоматически при старте бэкенда. Демо-данные (4 категории, 9 привычек и история отметок за 20 дней):
 
@@ -114,6 +115,37 @@ Workflow `.github/workflows/deploy-pages.yml` собирает фронтенд 
 - base path (`/<repo>`) подставляется автоматически через `actions/configure-pages`;
 - локальная проверка: `$env:STATIC_EXPORT="true"; npm run build` → результат в `frontend/out`.
 
+### HTTPS для бэкенда (Caddy)
+
+GitHub Pages работает только по HTTPS, поэтому API тоже должен быть доступен по HTTPS — иначе браузер блокирует запросы как mixed content. В `docker-compose.yml` есть опциональный сервис Caddy, который сам получает сертификат Let's Encrypt.
+
+1. A-запись поддомена (например `api.example.com`) должна указывать на IP сервера.
+2. Порты `80` и `443` должны быть открыты снаружи.
+3. На сервере:
+
+```powershell
+$env:API_DOMAIN="api.example.com"
+docker compose --profile tls up -d --build
+```
+
+Сертификат хранится в томе `caddy_data` и продлевается автоматически. Проверка:
+
+```powershell
+curl https://api.example.com/api/health
+```
+
+4. В GitHub укажите `API_URL=https://api.example.com` и перезапустите workflow.
+
+Если на сервере уже заняты порты 80/443 (nginx, другой сайт), либо остановите его, либо настройте проксирование на `backend:8080` в существующем веб-сервере. Порты `5432` и `8080` наружу открывать не обязательно — для работы через Caddy достаточно 80/443.
+
+Если поддомен проксируется через Cloudflare, включите режим **Full (strict)** или переключите запись в **DNS only** (серое облако). В режиме Flexible возможен цикл редиректов HTTP↔HTTPS.
+
+Логи Caddy и получение сертификата:
+
+```powershell
+docker compose --profile tls logs -f caddy
+```
+
 ## Структура
 
 ```
@@ -134,7 +166,8 @@ habit/
 │       ├── hooks/                # SWR-хелперы
 │       └── lib/                  # API-клиент, типы, работа с датами
 ├── .github/workflows/            # CI: деплой фронтенда на GitHub Pages
-├── docker-compose.yml            # PostgreSQL, бэкенд и фронтенд
+├── Caddyfile                     # HTTPS-прокси для API (профиль tls)
+├── docker-compose.yml            # PostgreSQL, бэкенд и Caddy (фронтенд закомментирован)
 └── README.md
 ```
 
