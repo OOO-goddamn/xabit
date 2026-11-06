@@ -19,7 +19,7 @@ func Load() Config {
 		Environment: getEnv("APP_ENV", "development"),
 	}
 
-	origins := strings.Split(getEnv("CORS_ORIGINS", "http://localhost:3000"), ",")
+	origins := strings.Split(getEnv("CORS_ORIGINS", "*"), ",")
 	for _, origin := range origins {
 		if origin = strings.TrimSpace(origin); origin != "" {
 			cfg.CORSOrigins = append(cfg.CORSOrigins, origin)

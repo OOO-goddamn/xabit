@@ -78,7 +78,7 @@ go run ./cmd/seed -force
 | -------------- | ----------------------------------------------------------------- |
 | `PORT`         | `8080`                                                            |
 | `DATABASE_URL` | `postgres://habit:habit@localhost:5432/habit?sslmode=disable`     |
-| `CORS_ORIGINS` | `http://localhost:3000`                                           |
+| `CORS_ORIGINS` | `*` (все origin)                                                   |
 
 #### 3. Фронтенд
 
@@ -110,7 +110,7 @@ Workflow `.github/workflows/deploy-pages.yml` собирает фронтенд 
 Особенности:
 
 - сборка идёт с `STATIC_EXPORT=true` (`output: "export"`), поэтому Cache Components/PPR отключаются — они требуют Node.js-сервер;
-- вместо прокси `/api/*` браузер обращается к бэкенду напрямую по `NEXT_PUBLIC_API_URL`, поэтому добавьте origin Pages (`https://<user>.github.io`) в `CORS_ORIGINS` бэкенда;
+- вместо прокси `/api/*` браузер обращается к бэкенду напрямую по `NEXT_PUBLIC_API_URL`. По умолчанию `CORS_ORIGINS=*`, то есть API принимает запросы с любого origin; если ограничиваете список, добавьте туда `https://<user>.github.io`;
 - base path (`/<repo>`) подставляется автоматически через `actions/configure-pages`;
 - локальная проверка: `$env:STATIC_EXPORT="true"; npm run build` → результат в `frontend/out`.
 
