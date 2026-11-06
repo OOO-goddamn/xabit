@@ -10,7 +10,27 @@
 
 ## Быстрый старт
 
-### 1. PostgreSQL
+### Всё в Docker
+
+```powershell
+docker compose up -d --build
+```
+
+- фронтенд — `http://localhost:3000`
+- API — `http://localhost:8080`
+- PostgreSQL — `localhost:5432`
+
+Миграции применяются автоматически при старте бэкенда. Демо-данные (4 категории, 9 привычек и история отметок за 20 дней):
+
+```powershell
+docker compose run --rm --entrypoint habit-seed backend -force
+```
+
+Остановить: `docker compose down` (данные сохраняются в томе `habit_pgdata`).
+
+### Локальная разработка
+
+#### 1. PostgreSQL
 
 Самый простой вариант — Docker:
 
@@ -31,21 +51,7 @@ CREATE DATABASE habit OWNER habit;
 postgres://habit:habit@localhost:5432/habit?sslmode=disable
 ```
 
-### 2. Бэкенд
-
-Вариант A — запустить бэкенд в Docker вместе с базой:
-
-```powershell
-docker compose up -d --build
-```
-
-API будет доступен на `http://localhost:8080`, миграции применяются автоматически. Демо-данные:
-
-```powershell
-docker compose run --rm --entrypoint habit-seed backend -force
-```
-
-Вариант B — запустить бэкенд локально (база из шага 1):
+#### 2. Бэкенд
 
 ```powershell
 cd backend
@@ -54,7 +60,7 @@ go run ./cmd/api
 
 API поднимется на `http://localhost:8080`. Миграции применяются автоматически при запуске.
 
-Чтобы наполнить базу демо-данными (4 категории, 9 привычек и история отметок за 20 дней):
+Чтобы наполнить базу демо-данными:
 
 ```powershell
 go run ./cmd/seed
@@ -74,7 +80,7 @@ go run ./cmd/seed -force
 | `DATABASE_URL` | `postgres://habit:habit@localhost:5432/habit?sslmode=disable`     |
 | `CORS_ORIGINS` | `http://localhost:3000`                                           |
 
-### 3. Фронтенд
+#### 3. Фронтенд
 
 ```powershell
 cd frontend
@@ -110,7 +116,7 @@ habit/
 │       ├── components/           # UI и модальные окна
 │       ├── hooks/                # SWR-хелперы
 │       └── lib/                  # API-клиент, типы, работа с датами
-├── docker-compose.yml            # PostgreSQL и бэкенд для локальной разработки
+├── docker-compose.yml            # PostgreSQL, бэкенд и фронтенд
 └── README.md
 ```
 
