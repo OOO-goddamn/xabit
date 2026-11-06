@@ -90,12 +90,29 @@ npm run dev
 
 Приложение откроется на `http://localhost:3000`. Next.js проксирует запросы `/api/*` на `http://localhost:8080`, поэтому CORS для браузера не нужен.
 
+В Docker-сборке фронтенд проксирует `/api/*` на `http://backend:8080` — этот адрес передаётся build-arg `API_URL` в `docker-compose.yml`.
+
 Если бэкенд запущен на другом адресе:
 
 ```powershell
 $env:API_URL="http://localhost:9090"
 npm run dev
 ```
+
+### GitHub Pages (статический фронтенд)
+
+Workflow `.github/workflows/deploy-pages.yml` собирает фронтенд как статический сайт и публикует его на GitHub Pages при каждом пуше в `main`.
+
+1. **Settings → Pages → Source** — выберите **GitHub Actions**.
+2. **Settings → Secrets and variables → Actions → Variables** — создайте переменную `API_URL` с публичным адресом бэкенда, например `https://api.example.com`.
+3. Запушьте изменения в `main` — сайт появится по адресу `https://<user>.github.io/<repo>/`.
+
+Особенности:
+
+- сборка идёт с `STATIC_EXPORT=true` (`output: "export"`), поэтому Cache Components/PPR отключаются — они требуют Node.js-сервер;
+- вместо прокси `/api/*` браузер обращается к бэкенду напрямую по `NEXT_PUBLIC_API_URL`, поэтому добавьте origin Pages (`https://<user>.github.io`) в `CORS_ORIGINS` бэкенда;
+- base path (`/<repo>`) подставляется автоматически через `actions/configure-pages`;
+- локальная проверка: `$env:STATIC_EXPORT="true"; npm run build` → результат в `frontend/out`.
 
 ## Структура
 
@@ -116,6 +133,7 @@ habit/
 │       ├── components/           # UI и модальные окна
 │       ├── hooks/                # SWR-хелперы
 │       └── lib/                  # API-клиент, типы, работа с датами
+├── .github/workflows/            # CI: деплой фронтенда на GitHub Pages
 ├── docker-compose.yml            # PostgreSQL, бэкенд и фронтенд
 └── README.md
 ```
