@@ -105,13 +105,17 @@ npm run dev
 Workflow `.github/workflows/deploy-pages.yml` собирает фронтенд как статический сайт и публикует его на GitHub Pages при каждом пуше в `main`.
 
 1. **Settings → Pages → Source** — выберите **GitHub Actions**.
-2. **Settings → Secrets and variables → Actions → Variables** — создайте переменную `API_URL` с публичным адресом бэкенда, например `https://api.example.com`.
+2. **Settings → Secrets and variables → Actions → Variables** — на вкладке **Variables** (не в **Environments**!) создайте переменную `API_URL` с публичным адресом бэкенда, например `https://api.example.com`. Достаточно одной переменной `API_URL`; `NEXT_PUBLIC_API_URL` workflow подставляет сам.
 3. Запушьте изменения в `main` — сайт появится по адресу `https://<user>.github.io/<repo>/`.
+
+> **Важно:** переменные, добавленные через **Settings → Environments → …**, доступны только тем job'ам, где явно указан `environment: <имя>`. Job сборки его не указывает, поэтому такие переменные для сборки не видны. Добавляйте `API_URL` на уровне репозитория (вкладка **Variables**), а не внутри Environment.
 
 Особенности:
 
 - сборка идёт с `STATIC_EXPORT=true` (`output: "export"`), поэтому Cache Components/PPR отключаются — они требуют Node.js-сервер;
-- вместо прокси `/api/*` браузер обращается к бэкенду напрямую по `NEXT_PUBLIC_API_URL`. По умолчанию `CORS_ORIGINS=*`, то есть API принимает запросы с любого origin; если ограничиваете список, добавьте туда `https://<user>.github.io`;
+- вместо прокси `/api/*` браузер обращается к бэкенду напрямую по `NEXT_PUBLIC_API_URL`. Значение подставляется в бандл на этапе сборки, поэтому после изменения `API_URL` нужно перезапустить workflow;
+- `process.env` в браузере всегда пустой: Next.js заменяет только прямые обращения вида `process.env.NEXT_PUBLIC_API_URL` на строку. Проверять адрес нужно в собранном JS или в Network-вкладке DevTools, а не через `console.log(process.env)`;
+- по умолчанию `CORS_ORIGINS=*`, то есть API принимает запросы с любого origin; если ограничиваете список, добавьте туда `https://<user>.github.io`;
 - base path (`/<repo>`) подставляется автоматически через `actions/configure-pages`;
 - локальная проверка: `$env:STATIC_EXPORT="true"; npm run build` → результат в `frontend/out`.
 

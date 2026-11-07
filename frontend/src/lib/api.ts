@@ -2,8 +2,7 @@ import type { AuthResponse, CompletionInput, HabitInput, User } from "@/lib/type
 import { authHeaders, clearToken } from "@/lib/session";
 
 const directBase = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
-console.log('directBase: ', directBase)
-console.log('process.env: ', process.env)
+
 export class ApiError extends Error {
   status: number;
 
