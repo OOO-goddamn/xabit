@@ -191,17 +191,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, loading } = useAuth();
   const isLoginPage = pathname === "/login";
-  console.log(pathname)
+  // /debug must stay reachable without a session: it shows login/API failures.
+  const isPublicPage = isLoginPage || pathname === "/debug";
+
   useEffect(() => {
     if (loading) {
       return;
     }
-    if (!user && !isLoginPage) {
+    if (!user && !isPublicPage) {
       router.replace("/login");
     } else if (user && isLoginPage) {
       router.replace("/");
     }
-  }, [loading, user, isLoginPage, router]);
+  }, [loading, user, isLoginPage, isPublicPage, router]);
 
   useEffect(() => {
     if (!drawerOpen) {
@@ -225,7 +227,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [drawerOpen]);
 
-  if (isLoginPage) {
+  if (isPublicPage) {
     return <>{children}</>;
   }
 
