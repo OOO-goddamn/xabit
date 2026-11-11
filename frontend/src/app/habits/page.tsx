@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import {
   AlertTriangle,
+  BellRing,
   Flame,
   Pencil,
   Plus,
@@ -273,6 +274,13 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
                 <p className="mt-2 line-clamp-2 min-h-10 text-[13px] leading-relaxed text-muted">
                   {habit.description || "Без описания"}
                 </p>
+
+                {habit.reminderTime ? (
+                  <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold text-forest">
+                    <BellRing size={11} />
+                    Напоминание в {habit.reminderTime}
+                  </p>
+                ) : null}
 
                 <div className="mt-auto pt-5">
                   <div className="flex items-end justify-between gap-3">

@@ -1,6 +1,6 @@
 # Привычка
 
-Спокойный трекер привычек: категории, ежедневные отметки, заметки, серии и статистика.
+Спокойный трекер привычек: категории, ежедневные отметки, заметки, серии, статистика и напоминания о привычках.
 
 **Стек**
 
@@ -119,6 +119,68 @@ Workflow `.github/workflows/deploy-pages.yml` собирает фронтенд 
 - base path (`/<repo>`) подставляется автоматически через `actions/configure-pages`;
 - локальная проверка: `$env:STATIC_EXPORT="true"; npm run build` → результат в `frontend/out`.
 
+### Напоминания
+
+У каждой привычки можно задать время напоминания — поле «Напоминание» в форме создания/редактирования. Оно хранится в `habits.reminder_time` (`TIME`) и трактуется в локальном часовом поясе устройства.
+
+Работают два независимых механизма:
+
+1. **Пока сайт открыт** — `ReminderScheduler` во фронтенде раз в 30 секунд проверяет привычки, у которых время наступило в последние 5 минут и которые ещё не отмечены. Показывает браузерное уведомление или всплывающее сообщение внутри приложения.
+2. **Push при закрытом браузере** — бэкенд раз в 30 секунд проверяет те же привычки с учётом часового пояса подписки и отправляет Web Push через service worker. Для этого нужны VAPID-ключи (см. ниже). Если push включён в этом браузере, локальный планировщик молчит, чтобы не дублировать уведомления.
+
+Повторно за день уведомление не показывается: локальный планировщик пишет отметку в `localStorage`, а бэкенд — в таблицу `reminder_deliveries`.
+
+#### Push-уведомления при закрытом браузере (VAPID)
+
+1. Сгенерируйте пару ключей один раз:
+
+   ```powershell
+   cd backend
+   go run ./cmd/vapid
+   ```
+
+   Или через Docker (из корня репозитория):
+
+   ```powershell
+   docker compose run --rm --no-deps --entrypoint habit-vapid backend
+   ```
+
+   Команда выведет `VAPID_PUBLIC_KEY` и `VAPID_PRIVATE_KEY`.
+
+2. Добавьте ключи и адрес фронтенда в `.env` рядом с `docker-compose.yml`:
+
+   ```dotenv
+   VAPID_PUBLIC_KEY=...
+   VAPID_PRIVATE_KEY=...
+   VAPID_SUBJECT=mailto:you@example.com
+   PUBLIC_APP_URL=https://xabit.nbfx.ru
+   ```
+
+   `PUBLIC_APP_URL` — адрес, который откроется при клике на уведомление. `VAPID_SUBJECT` — контакт администратора (`mailto:` или `https://`).
+
+3. Перезапустите бэкенд:
+
+   ```powershell
+   docker compose up -d --build backend
+   ```
+
+4. На сайте нажмите **Push-уведомления** в боковом меню и разрешите уведомления. Рядом появится ссылка «Проверить уведомление»: она отправит тестовый push на все подписки пользователя.
+
+Проверка, что ключи подхватились:
+
+```powershell
+curl.exe http://localhost:8080/api/push/config
+# {"enabled":true,"publicKey":"..."}
+```
+
+Важно:
+
+- Push работает только по HTTPS (или на `localhost`) и не работает в приватном режиме некоторых браузеров.
+- На iPhone/iPad push доступен только в установленном на домашний экран PWA (iOS 16.4+); в обычной вкладке Safari подписка не создаётся.
+- Часовой пояс берётся из браузера при подписке и обновляется при каждом входе. Если вы переехали в другой пояс, подписка синхронизируется при следующем открытии сайта.
+- Ключи VAPID можно менять, но после их смены старые подписки станут недействительны: пользователям нужно заново включить push.
+- Если ключи не заданы, `/api/push/config` возвращает `{"enabled":false}`, переключатель в интерфейсе скрыт, а напоминания продолжают работать только при открытой вкладке.
+
 ### Логи и диагностика фронтенда
 
 Фронтенд на GitHub Pages статический, поэтому его логи не попадают на сервер. В приложение добавлен клиентский логгер:
@@ -184,13 +246,16 @@ habit/
 ├── backend/
 │   ├── cmd/api/                  # HTTP-сервер
 │   ├── cmd/seed/                 # демо-данные
+│   ├── cmd/vapid/                # генерация VAPID-ключей для Web Push
 │   └── internal/
 │       ├── api/                  # роутер, хендлеры, middleware
 │       ├── config/               # конфигурация из env
 │       ├── database/             # пул подключений и миграции
 │       ├── models/               # доменные модели
+│       ├── push/                 # планировщик и отправка Web Push
 │       └── store/                # запросы к PostgreSQL
 ├── frontend/
+│   ├── public/sw.js              # service worker для push-уведомлений
 │   └── src/
 │       ├── app/                  # страницы: Сегодня, Привычки, Категории, Статистика
 │       ├── components/           # UI и модальные окна
@@ -211,11 +276,12 @@ categories (
 )
 
 habits (
-    id          BIGSERIAL PRIMARY KEY,
-    name        TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    category_id BIGINT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id            BIGSERIAL PRIMARY KEY,
+    name          TEXT NOT NULL,
+    description   TEXT NOT NULL DEFAULT '',
+    category_id   BIGINT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+    reminder_time TIME,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 )
 
 habit_completions (
@@ -227,6 +293,25 @@ habit_completions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (habit_id, date)
+)
+
+push_subscriptions (
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint   TEXT NOT NULL UNIQUE,
+    p256dh     TEXT NOT NULL,
+    auth       TEXT NOT NULL,
+    timezone   TEXT NOT NULL DEFAULT 'UTC',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)
+
+reminder_deliveries (
+    subscription_id BIGINT NOT NULL REFERENCES push_subscriptions(id) ON DELETE CASCADE,
+    habit_id        BIGINT NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+    date            DATE NOT NULL,
+    sent_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (subscription_id, habit_id, date)
 )
 ```
 
@@ -247,15 +332,19 @@ habit_completions (
 | `PATCH`  | `/api/categories/{id}`        | Переименовать категорию |
 | `DELETE` | `/api/categories/{id}`        | Удалить пустую категорию |
 | `GET`    | `/api/habits?categoryId=1`    | Привычки, опционально по категории |
-| `POST`   | `/api/habits`                 | Создать привычку `{ name, description, categoryId }` |
+| `POST`   | `/api/habits`                 | Создать привычку `{ name, description, categoryId, reminderTime }` |
 | `GET`    | `/api/habits/{id}`            | Одна привычка |
-| `PATCH`  | `/api/habits/{id}`            | Обновить привычку |
+| `PATCH`  | `/api/habits/{id}`            | Обновить привычку (`reminderTime` — `"HH:MM"` или `""`) |
 | `DELETE` | `/api/habits/{id}`            | Удалить привычку и её историю |
 | `GET`    | `/api/completions?from=...&to=...&habitId=...` | Отметки за период |
 | `PUT`    | `/api/completions`            | Upsert отметки `{ habitId, date, status, note }` |
 | `DELETE` | `/api/completions?habitId=1&date=2026-11-04` | Убрать отметку |
 | `GET`    | `/api/dashboard?date=2026-11-04` | День: привычки по категориям, неделя, серии, сводка |
 | `GET`    | `/api/stats?days=30&to=2026-11-04` | Статистика: сводка, дни, история по привычкам |
+| `GET`    | `/api/push/config`            | `{ enabled, publicKey }` — настройки Web Push |
+| `POST`   | `/api/push/subscriptions`     | Сохранить подписку `{ endpoint, keys: { p256dh, auth }, timezone }` |
+| `DELETE` | `/api/push/subscriptions`     | Удалить подписку `{ endpoint }` |
+| `POST`   | `/api/push/test`              | Отправить тестовый push на все устройства пользователя |
 
 Даты — строки `YYYY-MM-DD`, время — ISO 8601. Ошибки возвращаются в виде `{ "error": "текст" }` с подходящим HTTP-статусом.
 
@@ -284,4 +373,7 @@ npm run start
 
 ## Ограничения
 
-Демо-данные создаются отдельной командой и не попадают в прод автоматически.
+- Демо-данные создаются отдельной командой и не попадают в прод автоматически.
+- Push-уведомления требуют HTTPS (или `localhost`) и VAPID-ключей на бэкенде. Без ключей напоминания работают только при открытой вкладке.
+- На iOS push доступен только в установленном на домашний экран PWA (iOS 16.4+).
+- Часовой пояс подписки обновляется при открытии сайта. Если устройство долго не заходило в приложение после переезда в другой пояс, напоминание может прийти по старому времени.

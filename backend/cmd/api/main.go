@@ -15,6 +15,7 @@ import (
 	"habit/backend/internal/api"
 	"habit/backend/internal/config"
 	"habit/backend/internal/database"
+	"habit/backend/internal/push"
 	"habit/backend/internal/store"
 )
 
@@ -40,9 +41,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	habitStore := store.New(pool)
+	pushService := push.New(habitStore, push.Config{
+		PublicKey:  cfg.VAPIDPublicKey,
+		PrivateKey: cfg.VAPIDPrivateKey,
+		Subject:    cfg.VAPIDSubject,
+		AppURL:     cfg.PublicAppURL,
+	})
+	go pushService.Run(ctx)
+
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           api.NewRouter(api.NewHandler(store.New(pool)), cfg.CORSOrigins),
+		Handler:           api.NewRouter(api.NewHandler(habitStore, pushService), cfg.CORSOrigins),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

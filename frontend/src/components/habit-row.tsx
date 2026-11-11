@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BellRing,
   Check,
   CircleSlash,
   Flame,
@@ -111,6 +112,13 @@ export function HabitRow({
           <p className="mt-0.5 truncate text-[13px] text-muted">
             {habit.description || "Без описания"}
           </p>
+
+          {habit.reminderTime ? (
+            <p className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-forest">
+              <BellRing size={11} />
+              Напоминание в {habit.reminderTime}
+            </p>
+          ) : null}
 
           {note ? (
             <p className="mt-1.5 flex items-start gap-1.5 text-[12px] italic leading-snug text-muted">

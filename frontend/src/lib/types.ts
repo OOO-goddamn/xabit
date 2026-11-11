@@ -24,6 +24,7 @@ export interface Habit {
   description: string;
   categoryId: number;
   categoryName: string;
+  reminderTime: string;
   createdAt: string;
 }
 
@@ -103,6 +104,21 @@ export interface HabitInput {
   name: string;
   description: string;
   categoryId: number;
+  reminderTime: string;
+}
+
+export interface PushConfig {
+  enabled: boolean;
+  publicKey: string;
+}
+
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  timezone: string;
 }
 
 export interface CompletionInput {

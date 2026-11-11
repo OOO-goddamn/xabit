@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   output: isStaticExport ? "export" : "standalone",
   basePath,
   trailingSlash: isStaticExport,
+  // The service worker lives in public/ and must be registered under the same
+  // base path as the app (GitHub Pages project sites use /xabit/).
+  env: {
+    NEXT_PUBLIC_BASE_PATH: basePath ?? "",
+  },
   images: isStaticExport ? { unoptimized: true } : undefined,
   // Cache Components (and PPR) requires a Next.js server, so static export
   // falls back to plain prerendering.

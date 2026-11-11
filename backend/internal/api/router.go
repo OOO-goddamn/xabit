@@ -35,6 +35,11 @@ func NewRouter(handler *Handler, corsOrigins []string) http.Handler {
 	mux.HandleFunc("GET /api/dashboard", handler.dashboard)
 	mux.HandleFunc("GET /api/stats", handler.stats)
 
+	mux.HandleFunc("GET /api/push/config", handler.pushConfig)
+	mux.HandleFunc("POST /api/push/subscriptions", handler.savePushSubscription)
+	mux.HandleFunc("DELETE /api/push/subscriptions", handler.deletePushSubscription)
+	mux.HandleFunc("POST /api/push/test", handler.testPush)
+
 	var result http.Handler = mux
 	result = handler.withAuth(result)
 	result = withCORS(corsOrigins, result)

@@ -12,6 +12,7 @@ import {
 import { useSWRConfig } from "swr";
 
 import { api } from "@/lib/api";
+import { unsubscribePush } from "@/lib/push";
 import { clearToken, getToken, setToken } from "@/lib/session";
 import type { User } from "@/lib/types";
 
@@ -104,6 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    // Drop this device's push subscription while the token is still valid, so
+    // reminders do not keep arriving after logout.
+    try {
+      await unsubscribePush();
+    } catch {
+      // The local subscription is cleared even if the server is unreachable.
+    }
     try {
       await api.logout();
     } catch {

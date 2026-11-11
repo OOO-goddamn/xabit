@@ -164,7 +164,7 @@ func withUser(ctx context.Context, user models.User) context.Context {
 
 func isPublicPath(path string) bool {
 	switch path {
-	case "/api/health", "/api/auth/register", "/api/auth/login":
+	case "/api/health", "/api/auth/register", "/api/auth/login", "/api/push/config":
 		return true
 	default:
 		return false

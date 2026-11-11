@@ -27,6 +27,7 @@ type Habit struct {
 	Description  string    `json:"description"`
 	CategoryID   int64     `json:"categoryId"`
 	CategoryName string    `json:"categoryName"`
+	ReminderTime string    `json:"reminderTime"`
 	CreatedAt    time.Time `json:"createdAt"`
 }
 

@@ -180,7 +180,8 @@ func (s *Store) DeleteCategory(ctx context.Context, userID, id int64) error {
 // -------------------------------------------------------------------- habits
 
 const habitSelect = `
-	SELECT h.id, h.name, h.description, h.category_id, c.name, h.created_at
+	SELECT h.id, h.name, h.description, h.category_id, c.name, h.created_at,
+	       COALESCE(to_char(h.reminder_time, 'HH24:MI'), '')
 	FROM habits h
 	JOIN categories c ON c.id = h.category_id`
 
@@ -221,15 +222,15 @@ func (s *Store) GetHabit(ctx context.Context, userID, id int64) (models.Habit, e
 	return habit, err
 }
 
-func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description string, categoryID int64) (models.Habit, error) {
+func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description string, categoryID int64, reminderTime string) (models.Habit, error) {
 	var id int64
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO habits (user_id, name, description, category_id)
-		SELECT $1, $2, $3, c.id
+		INSERT INTO habits (user_id, name, description, category_id, reminder_time)
+		SELECT $1, $2, $3, c.id, NULLIF($5, '')::time
 		FROM categories c
 		WHERE c.id = $4 AND c.user_id = $1
 		RETURNING id`,
-		userID, name, description, categoryID,
+		userID, name, description, categoryID, reminderTime,
 	).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return models.Habit{}, ErrCategoryNotFound
@@ -240,7 +241,7 @@ func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description
 	return s.GetHabit(ctx, userID, id)
 }
 
-func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, description string, categoryID int64) (models.Habit, error) {
+func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, description string, categoryID int64, reminderTime string) (models.Habit, error) {
 	var categoryExists bool
 	if err := s.pool.QueryRow(ctx,
 		`SELECT EXISTS (SELECT 1 FROM categories WHERE id = $1 AND user_id = $2)`,
@@ -253,8 +254,8 @@ func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, descrip
 	}
 
 	tag, err := s.pool.Exec(ctx,
-		`UPDATE habits SET name = $3, description = $4, category_id = $5 WHERE id = $1 AND user_id = $2`,
-		id, userID, name, description, categoryID,
+		`UPDATE habits SET name = $3, description = $4, category_id = $5, reminder_time = NULLIF($6, '')::time WHERE id = $1 AND user_id = $2`,
+		id, userID, name, description, categoryID, reminderTime,
 	)
 	if err != nil {
 		return models.Habit{}, err
@@ -289,6 +290,7 @@ func scanHabit(row habitRow) (models.Habit, error) {
 		&habit.CategoryID,
 		&habit.CategoryName,
 		&habit.CreatedAt,
+		&habit.ReminderTime,
 	)
 	return habit, err
 }

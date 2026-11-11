@@ -15,6 +15,7 @@ type dashboardHabit struct {
 	Description  string             `json:"description"`
 	CategoryID   int64              `json:"categoryId"`
 	CategoryName string             `json:"categoryName"`
+	ReminderTime string             `json:"reminderTime"`
 	Completion   *models.Completion `json:"completion"`
 	Week         []models.DayStatus `json:"week"`
 	Streak       int                `json:"streak"`
@@ -95,6 +96,7 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 			Description:  habit.Description,
 			CategoryID:   habit.CategoryID,
 			CategoryName: habit.CategoryName,
+			ReminderTime: habit.ReminderTime,
 			Week:         make([]models.DayStatus, 0, 7),
 			Streak:       streakOn(doneByHabit[habit.ID], date),
 			Done30:       countDoneBetween(doneDates[habit.ID], date.AddDate(0, 0, -29), date),

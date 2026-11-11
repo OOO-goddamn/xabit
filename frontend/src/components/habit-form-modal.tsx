@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FolderPlus, Loader2 } from "lucide-react";
+import { BellRing, FolderPlus, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,20 @@ import { useRevalidateApi } from "@/hooks/use-revalidate-api";
 import { api } from "@/lib/api";
 import type { Category, Habit } from "@/lib/types";
 import { errorMessage } from "@/lib/utils";
+
+async function requestNotificationPermission() {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return;
+  }
+  if (Notification.permission !== "default") {
+    return;
+  }
+  try {
+    await Notification.requestPermission();
+  } catch {
+    // The reminder still shows in-app when the browser blocks notifications.
+  }
+}
 
 export function HabitFormModal({
   open,
@@ -49,6 +63,7 @@ function HabitDialog({
   const [name, setName] = useState(habit?.name ?? "");
   const [description, setDescription] = useState(habit?.description ?? "");
   const [categoryId, setCategoryId] = useState(habit?.categoryId ?? categories[0]?.id ?? 0);
+  const [reminderTime, setReminderTime] = useState(habit?.reminderTime ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,11 +87,16 @@ function HabitDialog({
     setSaving(true);
     setError(null);
 
+    if (reminderTime) {
+      await requestNotificationPermission();
+    }
+
     try {
       const payload = {
         name: name.trim(),
         description: description.trim(),
         categoryId: activeCategoryId,
+        reminderTime,
       };
 
       if (habit) {
@@ -103,7 +123,7 @@ function HabitDialog({
       title={habit ? "Редактировать привычку" : "Новая привычка"}
       description={
         habit
-          ? "Измените название, описание или категорию."
+          ? "Измените название, описание, категорию или время напоминания."
           : "Небольшое действие, которое хочется повторять каждый день."
       }
     >
@@ -148,6 +168,36 @@ function HabitDialog({
                 </option>
               ))}
             </Select>
+          </Field>
+
+          <Field label="Напоминание" htmlFor="habit-reminder" hint="Необязательно">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <BellRing
+                  size={15}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
+                <Input
+                  id="habit-reminder"
+                  type="time"
+                  value={reminderTime}
+                  onChange={(event) => setReminderTime(event.target.value)}
+                  className="w-[148px] pl-9"
+                />
+              </div>
+              {reminderTime ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setReminderTime("")}
+                >
+                  Убрать
+                </Button>
+              ) : (
+                <span className="text-[12px] text-muted">Без напоминания</span>
+              )}
+            </div>
           </Field>
 
           <Field

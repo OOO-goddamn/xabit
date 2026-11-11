@@ -1,4 +1,11 @@
-import type { AuthResponse, CompletionInput, HabitInput, User } from "@/lib/types";
+import type {
+  AuthResponse,
+  CompletionInput,
+  HabitInput,
+  PushConfig,
+  PushSubscriptionInput,
+  User,
+} from "@/lib/types";
 import { authHeaders, clearToken } from "@/lib/session";
 import { logger } from "@/lib/logger";
 
@@ -136,4 +143,14 @@ export const api = {
       `/api/completions?habitId=${habitId}&date=${encodeURIComponent(date)}`,
       "DELETE",
     ),
+
+  pushConfig: () => fetcher<PushConfig>("/api/push/config"),
+
+  savePushSubscription: (input: PushSubscriptionInput) =>
+    request<void>("/api/push/subscriptions", "POST", input),
+
+  deletePushSubscription: (endpoint: string) =>
+    request<void>("/api/push/subscriptions", "DELETE", { endpoint }),
+
+  testPush: () => request<{ sent: number }>("/api/push/test", "POST"),
 };

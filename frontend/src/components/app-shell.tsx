@@ -21,6 +21,7 @@ import type { Category } from "@/lib/types";
 import { cn, normalizePathname, toneFor } from "@/lib/utils";
 
 import { useAuth } from "./auth-provider";
+import { PushToggle } from "./push-toggle";
 import { ThemeToggle } from "./theme-toggle";
 
 const navItems = [
@@ -84,6 +85,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="mt-5 space-y-2 px-1">
         <ThemeToggle />
+        <PushToggle />
         <div className="flex items-center gap-2.5 rounded-2xl border border-line/70 bg-surface/45 px-2.5 py-2">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-forest-solid text-[11px] font-bold text-ivory">
             {initials || "?"}

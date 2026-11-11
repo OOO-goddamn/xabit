@@ -6,6 +6,7 @@ import { SWRConfig } from "swr";
 import { ToastProvider } from "@/components/ui/toast";
 import { AuthProvider } from "@/components/auth-provider";
 import { ClientLogger } from "@/components/client-logger";
+import { ReminderScheduler } from "@/components/reminder-scheduler";
 import { ThemeSync } from "@/components/theme-sync";
 import { fetcher } from "@/lib/api";
 
@@ -21,7 +22,10 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeSync />
       <ClientLogger />
       <AuthProvider>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <ReminderScheduler />
+          {children}
+        </ToastProvider>
       </AuthProvider>
     </SWRConfig>
   );

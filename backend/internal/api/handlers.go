@@ -5,15 +5,17 @@ import (
 	"log/slog"
 	"net/http"
 
+	"habit/backend/internal/push"
 	"habit/backend/internal/store"
 )
 
 type Handler struct {
 	store *store.Store
+	push  *push.Service
 }
 
-func NewHandler(st *store.Store) *Handler {
-	return &Handler{store: st}
+func NewHandler(st *store.Store, pushService *push.Service) *Handler {
+	return &Handler{store: st, push: pushService}
 }
 
 func (h *Handler) health(w http.ResponseWriter, _ *http.Request) {

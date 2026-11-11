@@ -3,12 +3,14 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 )
 
 type habitPayload struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	CategoryID  int64  `json:"categoryId"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	CategoryID   int64  `json:"categoryId"`
+	ReminderTime string `json:"reminderTime"`
 }
 
 func (h *Handler) listHabits(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +49,7 @@ func (h *Handler) createHabit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	habit, err := h.store.CreateHabit(r.Context(), currentUserID(r), payload.Name, payload.Description, payload.CategoryID)
+	habit, err := h.store.CreateHabit(r.Context(), currentUserID(r), payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -67,7 +69,7 @@ func (h *Handler) updateHabit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	habit, err := h.store.UpdateHabit(r.Context(), currentUserID(r), id, payload.Name, payload.Description, payload.CategoryID)
+	habit, err := h.store.UpdateHabit(r.Context(), currentUserID(r), id, payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -113,8 +115,18 @@ func (h *Handler) readHabitPayload(w http.ResponseWriter, r *http.Request) (habi
 		return payload, false
 	}
 
+	reminder := strings.TrimSpace(payload.ReminderTime)
+	if reminder != "" {
+		parsed, err := time.Parse("15:04", reminder)
+		if err != nil || parsed.Format("15:04") != reminder {
+			writeError(w, http.StatusUnprocessableEntity, "Время напоминания должно быть в формате ЧЧ:ММ")
+			return payload, false
+		}
+	}
+
 	payload.Name = name
 	payload.Description = description
+	payload.ReminderTime = reminder
 
 	return payload, true
 }
