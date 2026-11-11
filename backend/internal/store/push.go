@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+
+	"habit/backend/internal/models"
 )
 
 // PushSubscription is a browser push subscription owned by a user.
@@ -21,7 +23,8 @@ type PushReminder struct {
 	HabitName        string
 	HabitDescription string
 	ReminderTime     string
-	Subscription     PushSubscription
+	models.Schedule
+	Subscription PushSubscription
 }
 
 // SavePushSubscription creates a subscription or refreshes its keys and
@@ -87,6 +90,7 @@ func (s *Store) PushReminderCandidates(ctx context.Context) ([]PushReminder, err
 	rows, err := s.pool.Query(ctx, `
 		SELECT h.id, h.name, h.description,
 		       to_char(h.reminder_time, 'HH24:MI'),
+		       h.repeat_type, h.weekdays, COALESCE(h.month_day, 0),
 		       s.id, s.user_id, s.endpoint, s.p256dh, s.auth, s.timezone
 		FROM habits h
 		JOIN push_subscriptions s ON s.user_id = h.user_id
@@ -101,12 +105,17 @@ func (s *Store) PushReminderCandidates(ctx context.Context) ([]PushReminder, err
 	for rows.Next() {
 		var reminder PushReminder
 		var subscription PushSubscription
+		var weekdays []int32
+		var monthDay int
 
 		err := rows.Scan(
 			&reminder.HabitID,
 			&reminder.HabitName,
 			&reminder.HabitDescription,
 			&reminder.ReminderTime,
+			&reminder.Schedule.Repeat,
+			&weekdays,
+			&monthDay,
 			&subscription.ID,
 			&subscription.UserID,
 			&subscription.Endpoint,
@@ -116,6 +125,11 @@ func (s *Store) PushReminderCandidates(ctx context.Context) ([]PushReminder, err
 		)
 		if err != nil {
 			return nil, err
+		}
+
+		reminder.Schedule.Weekdays = weekdaysToInts(weekdays)
+		if monthDay > 0 {
+			reminder.Schedule.MonthDay = &monthDay
 		}
 
 		reminder.Subscription = subscription

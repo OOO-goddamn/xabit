@@ -233,6 +233,10 @@ export default function StatsPage() {
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-[3px] bg-line/70" /> Нет отметки
                 </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-[3px] border border-dashed border-line bg-transparent" />{" "}
+                  Не по расписанию
+                </span>
               </div>
             </div>
 
@@ -251,25 +255,33 @@ export default function StatsPage() {
                     </div>
 
                     <div className="flex flex-1 gap-[3px]">
-                      {habit.history.map((day) => (
-                        <span
-                          key={day.date}
-                          title={`${formatShortDate(day.date)}: ${
-                            day.status === "done"
-                              ? "выполнено"
-                              : day.status === "skipped"
-                                ? "пропущено"
-                                : "нет отметки"
-                          }`}
-                          className={cn(
-                            "h-4 flex-1 rounded-[3px] transition hover:opacity-70",
-                            day.status === "done" && "bg-forest",
-                            day.status === "skipped" && "bg-clay/50",
-                            !day.status && "bg-line/60",
-                            day.date === data.to && "ring-1 ring-forest/50 ring-offset-1",
-                          )}
-                        />
-                      ))}
+                      {habit.history.map((day) => {
+                        const offDay = day.due === false && !day.status;
+
+                        return (
+                          <span
+                            key={day.date}
+                            title={`${formatShortDate(day.date)}: ${
+                              day.status === "done"
+                                ? "выполнено"
+                                : day.status === "skipped"
+                                  ? "пропущено"
+                                  : offDay
+                                    ? "не по расписанию"
+                                    : "нет отметки"
+                            }`}
+                            className={cn(
+                              "h-4 flex-1 rounded-[3px] transition hover:opacity-70",
+                              day.status === "done" && "bg-forest",
+                              day.status === "skipped" && "bg-clay/50",
+                              !day.status && !offDay && "bg-line/60",
+                              offDay &&
+                                "border border-dashed border-line/70 bg-transparent",
+                              day.date === data.to && "ring-1 ring-forest/50 ring-offset-1",
+                            )}
+                          />
+                        );
+                      })}
                     </div>
 
                     <span className="w-10 shrink-0 text-right text-[11px] font-semibold text-muted">

@@ -119,9 +119,26 @@ Workflow `.github/workflows/deploy-pages.yml` собирает фронтенд 
 - base path (`/<repo>`) подставляется автоматически через `actions/configure-pages`;
 - локальная проверка: `$env:STATIC_EXPORT="true"; npm run build` → результат в `frontend/out`.
 
+### Повторение привычек
+
+У каждой привычки есть расписание — блок «Повторение» в форме создания/редактирования:
+
+- **Каждый день** — привычка запланирована на любой день (поведение по умолчанию);
+- **По дням недели** — выбранные дни, например только Пн и Ср (одна привычка может быть и раз в неделю, и два раза в неделю);
+- **Раз в месяц** — выбранное число от 1 до 31. Если в месяце нет такого числа (29–31 в коротких месяцах), привычка попадает на последний день месяца.
+
+Расписание хранится в `habits.repeat_type`, `habits.weekdays` (ISO-номера дней, 1 = понедельник) и `habits.month_day`.
+
+Дни вне расписания:
+
+- показываются в недельной полоске и в истории статистики бледной полупрозрачной галочкой или пунктирной клеткой;
+- не требуют отметки — кнопки выполнения и пропуска для них неактивны;
+- не входят в «осталось сегодня», выполняемость и серии — серия растёт только за запланированные дни;
+- не вызывают напоминаний ни в открытой вкладке, ни через Web Push.
+
 ### Напоминания
 
-У каждой привычки можно задать время напоминания — поле «Напоминание» в форме создания/редактирования. Оно хранится в `habits.reminder_time` (`TIME`) и трактуется в локальном часовом поясе устройства.
+У каждой привычки можно задать время напоминания — поле «Напоминание» в форме создания/редактирования. Оно хранится в `habits.reminder_time` (`TIME`) и трактуется в локальном часовом поясе устройства. Напоминание срабатывает только в запланированные по расписанию дни.
 
 Работают два независимых механизма:
 
@@ -139,10 +156,10 @@ Workflow `.github/workflows/deploy-pages.yml` собирает фронтенд 
    go run ./cmd/vapid
    ```
 
-   Или через Docker (из корня репозитория):
+   Или через Docker. Команду нужно выполнять из корня репозитория (там, где лежит `docker-compose.yml`) при запущенном Docker; `--build` обязателен, если образ ещё не собирался после появления `cmd/vapid`:
 
    ```powershell
-   docker compose run --rm --no-deps --entrypoint habit-vapid backend
+   docker compose run --rm --no-deps --build --entrypoint habit-vapid backend
    ```
 
    Команда выведет `VAPID_PUBLIC_KEY` и `VAPID_PRIVATE_KEY`.
@@ -281,6 +298,10 @@ habits (
     description   TEXT NOT NULL DEFAULT '',
     category_id   BIGINT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
     reminder_time TIME,
+    repeat_type   TEXT NOT NULL DEFAULT 'daily'
+                  CHECK (repeat_type IN ('daily', 'weekly', 'monthly')),
+    weekdays      INT[] NOT NULL DEFAULT '{}',
+    month_day     SMALLINT CHECK (month_day BETWEEN 1 AND 31),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 )
 
@@ -332,7 +353,7 @@ reminder_deliveries (
 | `PATCH`  | `/api/categories/{id}`        | Переименовать категорию |
 | `DELETE` | `/api/categories/{id}`        | Удалить пустую категорию |
 | `GET`    | `/api/habits?categoryId=1`    | Привычки, опционально по категории |
-| `POST`   | `/api/habits`                 | Создать привычку `{ name, description, categoryId, reminderTime }` |
+| `POST`   | `/api/habits`                 | Создать привычку `{ name, description, categoryId, reminderTime, repeat, weekdays, monthDay }` |
 | `GET`    | `/api/habits/{id}`            | Одна привычка |
 | `PATCH`  | `/api/habits/{id}`            | Обновить привычку (`reminderTime` — `"HH:MM"` или `""`) |
 | `DELETE` | `/api/habits/{id}`            | Удалить привычку и её историю |

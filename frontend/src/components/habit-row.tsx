@@ -2,6 +2,7 @@
 
 import {
   BellRing,
+  CalendarDays,
   Check,
   CircleSlash,
   Flame,
@@ -34,7 +35,9 @@ export function HabitRow({
   const status = habit.completion?.status ?? null;
   const note = habit.completion?.note ?? "";
   const isFuture = date > today;
-  const disabled = pending || isFuture;
+  const due = habit.due !== false;
+  const offDay = !due && !status;
+  const disabled = pending || isFuture || offDay;
   const isDone = status === "done";
   const isSkipped = status === "skipped";
 
@@ -44,7 +47,8 @@ export function HabitRow({
         "group flex flex-col gap-3 rounded-[24px] border bg-surface p-4 shadow-[0_1px_0_rgba(23,51,42,0.02)] transition-all duration-200 sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-4",
         isDone && "border-forest/25 bg-gradient-to-r from-forest-soft/55 via-surface to-surface",
         isSkipped && "border-clay/20 bg-gradient-to-r from-clay-soft/35 via-surface to-surface",
-        !status && "border-line hover:border-forest/20 hover:shadow-card",
+        !status && offDay && "border-dashed border-line/80 bg-cream/35 opacity-80",
+        !status && !offDay && "border-line hover:border-forest/20 hover:shadow-card",
         isFuture && "opacity-80",
       )}
     >
@@ -55,17 +59,27 @@ export function HabitRow({
           onClick={() => onSetStatus(habit, isDone ? null : "done")}
           aria-pressed={isDone}
           aria-label={
-            isDone
-              ? `Снять отметку с привычки «${habit.name}»`
-              : `Отметить привычку «${habit.name}» выполненной`
+            offDay
+              ? `Привычка «${habit.name}» сегодня не по расписанию`
+              : isDone
+                ? `Снять отметку с привычки «${habit.name}»`
+                : `Отметить привычку «${habit.name}» выполненной`
           }
-          title={isFuture ? "Нельзя отметить будущий день" : undefined}
+          title={
+            offDay
+              ? "Сегодня не по расписанию — отдых"
+              : isFuture
+                ? "Нельзя отметить будущий день"
+                : undefined
+          }
           className={cn(
             "grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 transition-all duration-200",
             isDone &&
               "border-forest-solid bg-forest-solid text-ivory shadow-[0_8px_18px_-10px_rgba(29,92,72,0.9)]",
             isSkipped && "border-clay/30 bg-clay-soft text-clay",
+            offDay && "border-dashed border-line/80 bg-cream/40 text-muted/40",
             !status &&
+              !offDay &&
               "border-line bg-cream text-muted hover:border-forest/50 hover:bg-forest-soft/60 hover:text-forest",
             disabled && "cursor-not-allowed opacity-55",
             pending && "opacity-100",
@@ -77,6 +91,8 @@ export function HabitRow({
             <Check size={20} strokeWidth={3} />
           ) : isSkipped ? (
             <Minus size={18} strokeWidth={3} />
+          ) : offDay ? (
+            <Check size={20} strokeWidth={3} className="opacity-30" />
           ) : (
             <span className="h-2 w-2 rounded-full bg-line transition group-hover:bg-forest/40" />
           )}
@@ -107,13 +123,19 @@ export function HabitRow({
                 Пропущено
               </span>
             ) : null}
+            {offDay ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-cream px-2 py-0.5 text-[10px] font-bold text-muted">
+                <CalendarDays size={10} />
+                Не по расписанию
+              </span>
+            ) : null}
           </div>
 
           <p className="mt-0.5 truncate text-[13px] text-muted">
-            {habit.description || "Без описания"}
+            {habit.description || (offDay ? "Сегодня отдых по расписанию" : "Без описания")}
           </p>
 
-          {habit.reminderTime ? (
+          {habit.reminderTime && due ? (
             <p className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-forest">
               <BellRing size={11} />
               Напоминание в {habit.reminderTime}

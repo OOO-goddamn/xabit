@@ -1,5 +1,7 @@
 export type CompletionStatus = "done" | "skipped";
 
+export type RepeatType = "daily" | "weekly" | "monthly";
+
 export interface User {
   id: number;
   email: string;
@@ -25,6 +27,9 @@ export interface Habit {
   categoryId: number;
   categoryName: string;
   reminderTime: string;
+  repeat: RepeatType;
+  weekdays: number[];
+  monthDay: number | null;
   createdAt: string;
 }
 
@@ -39,6 +44,7 @@ export interface Completion {
 export interface DayStatus {
   date: string;
   status: CompletionStatus | null;
+  due?: boolean;
 }
 
 export interface DashboardHabit extends Habit {
@@ -46,6 +52,7 @@ export interface DashboardHabit extends Habit {
   week: DayStatus[];
   streak: number;
   done30: number;
+  due?: boolean;
 }
 
 export interface DashboardStats {
@@ -105,6 +112,9 @@ export interface HabitInput {
   description: string;
   categoryId: number;
   reminderTime: string;
+  repeat: RepeatType;
+  weekdays: number[];
+  monthDay: number | null;
 }
 
 export interface PushConfig {

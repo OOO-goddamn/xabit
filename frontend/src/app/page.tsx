@@ -45,8 +45,14 @@ import {
   weekdayLabel,
 } from "@/lib/utils";
 
-function heroCopy(stats: DashboardResponse["stats"]) {
+function heroCopy(stats: DashboardResponse["stats"], habitCount: number) {
   if (stats.total === 0) {
+    if (habitCount > 0) {
+      return {
+        title: "День отдыха",
+        text: "На сегодня по расписанию ничего нет. Отдых — тоже часть ритма.",
+      };
+    }
     return {
       title: "Начните с одной привычки",
       text: "Добавьте первое маленькое действие — и отмечайте его каждый день.",
@@ -156,7 +162,7 @@ export default function DashboardPage() {
   const isToday = date === today;
   const canGoNext = Boolean(today && date < today);
   const stats = data.stats;
-  const copy = heroCopy(stats);
+  const copy = heroCopy(stats, data.habits.length);
   const dayProgress = stats.total > 0 ? (stats.done / stats.total) * 100 : 0;
 
   const groups: Array<{ id: number; name: string; habits: DashboardHabit[] }> = [];
@@ -226,9 +232,11 @@ export default function DashboardPage() {
             <div className="max-w-md">
               <span className="inline-flex items-center gap-2 rounded-full border border-ivory/15 bg-ivory/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-ivory/75">
                 <Sparkles size={12} className="text-gold" />
-                {stats.remaining > 0
-                  ? `${stats.remaining} ${habitsWord(stats.remaining)} впереди`
-                  : "Все отметки на месте"}
+                {stats.total === 0
+                  ? "На сегодня отдых"
+                  : stats.remaining > 0
+                    ? `${stats.remaining} ${habitsWord(stats.remaining)} впереди`
+                    : "Все отметки на месте"}
               </span>
 
               <h2 className="mt-4 font-display text-[30px] leading-[1.12] sm:text-[34px]">
@@ -296,7 +304,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
-                Всего
+                По плану
               </dt>
               <dd className="mt-1 font-display text-2xl leading-none text-ink">{stats.total}</dd>
             </div>
@@ -319,7 +327,8 @@ export default function DashboardPage() {
         <div className="space-y-7">
           {groups.map((group, groupIndex) => {
             const tone = toneFor(group.id);
-            const doneCount = group.habits.filter(
+            const planned = group.habits.filter((habit) => habit.due !== false);
+            const doneCount = planned.filter(
               (habit) => habit.completion?.status === "done",
             ).length;
 
@@ -337,7 +346,7 @@ export default function DashboardPage() {
                     </h2>
                   </div>
                   <span className="shrink-0 rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-muted">
-                    {doneCount}/{group.habits.length}
+                    {planned.length > 0 ? `${doneCount}/${planned.length}` : "отдых"}
                   </span>
                 </div>
 
@@ -366,6 +375,9 @@ export default function DashboardPage() {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Flame size={13} className="text-gold" /> Серия растёт за выполненные дни подряд
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <CalendarDays size={13} className="text-muted/60" /> Бледная галочка — не по расписанию
         </span>
       </div>
 

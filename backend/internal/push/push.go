@@ -145,6 +145,9 @@ func (s *Service) check(ctx context.Context, now time.Time) {
 		if !due {
 			continue
 		}
+		if !candidate.Schedule.DueOn(target) {
+			continue
+		}
 		date := target.Format(time.DateOnly)
 
 		completed, err := s.store.CompletionExists(ctx, candidate.HabitID, date)

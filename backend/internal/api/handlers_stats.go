@@ -98,30 +98,11 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 		date := from.AddDate(0, 0, offset)
 		key := date.Format(time.DateOnly)
 		dailyIndex[key] = len(daily)
-		daily = append(daily, statsDay{Date: key, Possible: len(habits)})
-	}
-
-	for _, completion := range completions {
-		index, ok := dailyIndex[completion.Date]
-		if !ok {
-			continue
-		}
-		switch completion.Status {
-		case models.StatusDone:
-			daily[index].Done++
-		case models.StatusSkipped:
-			daily[index].Skipped++
-		}
-	}
-
-	for index := range daily {
-		if daily[index].Possible > 0 {
-			daily[index].Rate = round1(float64(daily[index].Done) / float64(daily[index].Possible) * 100)
-		}
+		daily = append(daily, statsDay{Date: key})
 	}
 
 	habitStats := make([]statsHabit, 0, len(habits))
-	totals := statsTotals{Possible: len(habits) * days}
+	totals := statsTotals{}
 
 	for _, habit := range habits {
 		item := statsHabit{
@@ -129,36 +110,53 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 			Name:         habit.Name,
 			CategoryName: habit.CategoryName,
 			History:      make([]models.DayStatus, 0, days),
-			Streak:       streakOn(dateSet(doneDates[habit.ID]), to),
+			Streak:       streakOn(dateSet(doneDates[habit.ID]), to, habit.Schedule),
 		}
 
 		statuses := statusByHabit[habit.ID]
 		for offset := 0; offset < days; offset++ {
 			date := from.AddDate(0, 0, offset)
 			key := date.Format(time.DateOnly)
-			dayStatus := models.DayStatus{Date: key}
+			due := habit.DueOn(date)
+			dayStatus := models.DayStatus{Date: key, Due: due}
+
+			if due {
+				totals.Possible++
+				daily[dailyIndex[key]].Possible++
+			}
 
 			if status, ok := statuses[key]; ok {
 				status := status
 				dayStatus.Status = &status
-				switch status {
-				case models.StatusDone:
-					item.Done++
-				case models.StatusSkipped:
-					item.Skipped++
+				if due {
+					switch status {
+					case models.StatusDone:
+						item.Done++
+						totals.Done++
+						daily[dailyIndex[key]].Done++
+					case models.StatusSkipped:
+						item.Skipped++
+						totals.Skipped++
+						daily[dailyIndex[key]].Skipped++
+					}
 				}
 			}
 
 			item.History = append(item.History, dayStatus)
 		}
 
-		if days > 0 {
-			item.Rate = round1(float64(item.Done) / float64(days) * 100)
+		dueDays := habit.DueCountBetween(from, to)
+		if dueDays > 0 {
+			item.Rate = round1(float64(item.Done) / float64(dueDays) * 100)
 		}
 
-		totals.Done += item.Done
-		totals.Skipped += item.Skipped
 		habitStats = append(habitStats, item)
+	}
+
+	for index := range daily {
+		if daily[index].Possible > 0 {
+			daily[index].Rate = round1(float64(daily[index].Done) / float64(daily[index].Possible) * 100)
+		}
 	}
 
 	if totals.Possible > 0 {

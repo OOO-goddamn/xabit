@@ -1,9 +1,13 @@
 package api
 
 import (
+	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
+
+	"habit/backend/internal/models"
 )
 
 type habitPayload struct {
@@ -11,6 +15,7 @@ type habitPayload struct {
 	Description  string `json:"description"`
 	CategoryID   int64  `json:"categoryId"`
 	ReminderTime string `json:"reminderTime"`
+	models.Schedule
 }
 
 func (h *Handler) listHabits(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +54,7 @@ func (h *Handler) createHabit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	habit, err := h.store.CreateHabit(r.Context(), currentUserID(r), payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime)
+	habit, err := h.store.CreateHabit(r.Context(), currentUserID(r), payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime, payload.Schedule)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -69,7 +74,7 @@ func (h *Handler) updateHabit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	habit, err := h.store.UpdateHabit(r.Context(), currentUserID(r), id, payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime)
+	habit, err := h.store.UpdateHabit(r.Context(), currentUserID(r), id, payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime, payload.Schedule)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -128,5 +133,58 @@ func (h *Handler) readHabitPayload(w http.ResponseWriter, r *http.Request) (habi
 	payload.Description = description
 	payload.ReminderTime = reminder
 
+	schedule, err := normalizeSchedule(payload.Schedule)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return payload, false
+	}
+	payload.Schedule = schedule
+
 	return payload, true
+}
+
+func normalizeSchedule(schedule models.Schedule) (models.Schedule, error) {
+	repeat := strings.ToLower(strings.TrimSpace(schedule.Repeat))
+	if repeat == "" {
+		repeat = "daily"
+	}
+
+	normalized := models.Schedule{Repeat: repeat}
+
+	switch repeat {
+	case "daily":
+		return normalized, nil
+
+	case "weekly":
+		if len(schedule.Weekdays) == 0 {
+			return normalized, errors.New("Выберите хотя бы один день недели")
+		}
+
+		seen := make(map[int]bool, len(schedule.Weekdays))
+		for _, day := range schedule.Weekdays {
+			if day < 1 || day > 7 {
+				return normalized, errors.New("День недели должен быть от 1 (понедельник) до 7 (воскресенье)")
+			}
+			if !seen[day] {
+				seen[day] = true
+				normalized.Weekdays = append(normalized.Weekdays, day)
+			}
+		}
+		sort.Ints(normalized.Weekdays)
+		return normalized, nil
+
+	case "monthly":
+		if schedule.MonthDay == nil {
+			return normalized, errors.New("Выберите день месяца")
+		}
+		if *schedule.MonthDay < 1 || *schedule.MonthDay > 31 {
+			return normalized, errors.New("День месяца должен быть от 1 до 31")
+		}
+		day := *schedule.MonthDay
+		normalized.MonthDay = &day
+		return normalized, nil
+
+	default:
+		return normalized, errors.New("Повторение может быть daily, weekly или monthly")
+	}
 }

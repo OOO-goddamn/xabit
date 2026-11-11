@@ -106,7 +106,7 @@ export function ReminderScheduler() {
       let changed = false;
 
       for (const habit of dashboard.habits) {
-        if (!habit.reminderTime || habit.completion) {
+        if (!habit.reminderTime || habit.completion || habit.due === false) {
           continue;
         }
 

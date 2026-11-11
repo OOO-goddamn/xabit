@@ -29,6 +29,7 @@ type Habit struct {
 	CategoryName string    `json:"categoryName"`
 	ReminderTime string    `json:"reminderTime"`
 	CreatedAt    time.Time `json:"createdAt"`
+	Schedule
 }
 
 type Completion struct {
@@ -42,4 +43,5 @@ type Completion struct {
 type DayStatus struct {
 	Date   string  `json:"date"`
 	Status *string `json:"status"`
+	Due    bool    `json:"due"`
 }

@@ -6,6 +6,7 @@ import useSWR from "swr";
 import {
   AlertTriangle,
   BellRing,
+  CalendarDays,
   Flame,
   Pencil,
   Plus,
@@ -23,6 +24,7 @@ import { useToast } from "@/components/ui/toast";
 import { WeekDots } from "@/components/week-dots";
 import { useRevalidateApi } from "@/hooks/use-revalidate-api";
 import { api } from "@/lib/api";
+import { scheduleLabel } from "@/lib/schedule";
 import type { Category, DashboardHabit, DashboardResponse } from "@/lib/types";
 import {
   cn,
@@ -229,6 +231,7 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
           {filtered.map((habit, index) => {
             const tone = toneFor(habit.categoryId);
             const status = habit.completion?.status;
+            const due = habit.due !== false;
 
             return (
               <article
@@ -275,6 +278,13 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
                   {habit.description || "Без описания"}
                 </p>
 
+                {habit.repeat !== "daily" ? (
+                  <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted">
+                    <CalendarDays size={11} />
+                    {scheduleLabel(habit)}
+                  </p>
+                ) : null}
+
                 {habit.reminderTime ? (
                   <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold text-forest">
                     <BellRing size={11} />
@@ -301,18 +311,22 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full",
-                          status === "done"
-                            ? "bg-forest"
-                            : status === "skipped"
-                              ? "bg-clay"
-                              : "bg-line",
+                          !due
+                            ? "bg-line/50"
+                            : status === "done"
+                              ? "bg-forest"
+                              : status === "skipped"
+                                ? "bg-clay"
+                                : "bg-line",
                         )}
                       />
-                      {status === "done"
-                        ? "Сегодня выполнено"
-                        : status === "skipped"
-                          ? "Сегодня пропущено"
-                          : "Сегодня без отметки"}
+                      {!due && !status
+                        ? "Сегодня не по расписанию"
+                        : status === "done"
+                          ? "Сегодня выполнено"
+                          : status === "skipped"
+                            ? "Сегодня пропущено"
+                            : "Сегодня без отметки"}
                     </span>
                     <span>{habit.done30} за 30 дней</span>
                   </div>

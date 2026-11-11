@@ -181,7 +181,8 @@ func (s *Store) DeleteCategory(ctx context.Context, userID, id int64) error {
 
 const habitSelect = `
 	SELECT h.id, h.name, h.description, h.category_id, c.name, h.created_at,
-	       COALESCE(to_char(h.reminder_time, 'HH24:MI'), '')
+	       COALESCE(to_char(h.reminder_time, 'HH24:MI'), ''),
+	       h.repeat_type, h.weekdays, COALESCE(h.month_day, 0)
 	FROM habits h
 	JOIN categories c ON c.id = h.category_id`
 
@@ -222,15 +223,16 @@ func (s *Store) GetHabit(ctx context.Context, userID, id int64) (models.Habit, e
 	return habit, err
 }
 
-func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description string, categoryID int64, reminderTime string) (models.Habit, error) {
+func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description string, categoryID int64, reminderTime string, schedule models.Schedule) (models.Habit, error) {
 	var id int64
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO habits (user_id, name, description, category_id, reminder_time)
-		SELECT $1, $2, $3, c.id, NULLIF($5, '')::time
+		INSERT INTO habits (user_id, name, description, category_id, reminder_time, repeat_type, weekdays, month_day)
+		SELECT $1, $2, $3, c.id, NULLIF($5, '')::time, $6, $7, $8
 		FROM categories c
 		WHERE c.id = $4 AND c.user_id = $1
 		RETURNING id`,
 		userID, name, description, categoryID, reminderTime,
+		schedule.Repeat, weekdayParams(schedule.Weekdays), monthDayParam(schedule.MonthDay),
 	).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return models.Habit{}, ErrCategoryNotFound
@@ -241,7 +243,7 @@ func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description
 	return s.GetHabit(ctx, userID, id)
 }
 
-func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, description string, categoryID int64, reminderTime string) (models.Habit, error) {
+func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, description string, categoryID int64, reminderTime string, schedule models.Schedule) (models.Habit, error) {
 	var categoryExists bool
 	if err := s.pool.QueryRow(ctx,
 		`SELECT EXISTS (SELECT 1 FROM categories WHERE id = $1 AND user_id = $2)`,
@@ -254,8 +256,12 @@ func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, descrip
 	}
 
 	tag, err := s.pool.Exec(ctx,
-		`UPDATE habits SET name = $3, description = $4, category_id = $5, reminder_time = NULLIF($6, '')::time WHERE id = $1 AND user_id = $2`,
+		`UPDATE habits
+		 SET name = $3, description = $4, category_id = $5, reminder_time = NULLIF($6, '')::time,
+		     repeat_type = $7, weekdays = $8, month_day = $9
+		 WHERE id = $1 AND user_id = $2`,
 		id, userID, name, description, categoryID, reminderTime,
+		schedule.Repeat, weekdayParams(schedule.Weekdays), monthDayParam(schedule.MonthDay),
 	)
 	if err != nil {
 		return models.Habit{}, err
@@ -283,6 +289,9 @@ type habitRow interface {
 
 func scanHabit(row habitRow) (models.Habit, error) {
 	var habit models.Habit
+	var weekdays []int32
+	var monthDay int
+
 	err := row.Scan(
 		&habit.ID,
 		&habit.Name,
@@ -291,8 +300,42 @@ func scanHabit(row habitRow) (models.Habit, error) {
 		&habit.CategoryName,
 		&habit.CreatedAt,
 		&habit.ReminderTime,
+		&habit.Schedule.Repeat,
+		&weekdays,
+		&monthDay,
 	)
-	return habit, err
+	if err != nil {
+		return habit, err
+	}
+
+	habit.Schedule.Weekdays = weekdaysToInts(weekdays)
+	if monthDay > 0 {
+		habit.Schedule.MonthDay = &monthDay
+	}
+	return habit, nil
+}
+
+func weekdayParams(days []int) []int32 {
+	params := make([]int32, len(days))
+	for index, day := range days {
+		params[index] = int32(day)
+	}
+	return params
+}
+
+func weekdaysToInts(days []int32) []int {
+	result := make([]int, len(days))
+	for index, day := range days {
+		result[index] = int(day)
+	}
+	return result
+}
+
+func monthDayParam(day *int) any {
+	if day == nil {
+		return nil
+	}
+	return *day
 }
 
 // --------------------------------------------------------------- completions

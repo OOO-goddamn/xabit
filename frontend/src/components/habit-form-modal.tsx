@@ -10,8 +10,9 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { useRevalidateApi } from "@/hooks/use-revalidate-api";
 import { api } from "@/lib/api";
-import type { Category, Habit } from "@/lib/types";
-import { errorMessage } from "@/lib/utils";
+import { REPEAT_OPTIONS, WEEKDAY_OPTIONS, monthDayLabel } from "@/lib/schedule";
+import type { Category, Habit, RepeatType } from "@/lib/types";
+import { cn, errorMessage } from "@/lib/utils";
 
 async function requestNotificationPermission() {
   if (typeof window === "undefined" || !("Notification" in window)) {
@@ -64,6 +65,11 @@ function HabitDialog({
   const [description, setDescription] = useState(habit?.description ?? "");
   const [categoryId, setCategoryId] = useState(habit?.categoryId ?? categories[0]?.id ?? 0);
   const [reminderTime, setReminderTime] = useState(habit?.reminderTime ?? "");
+  const [repeat, setRepeat] = useState<RepeatType>(habit?.repeat ?? "daily");
+  const [weekdays, setWeekdays] = useState<number[]>(() =>
+    [...(habit?.weekdays ?? [])].sort((a, b) => a - b),
+  );
+  const [monthDay, setMonthDay] = useState(habit?.monthDay ?? 1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +89,10 @@ function HabitDialog({
       setError("Выберите категорию");
       return;
     }
+    if (repeat === "weekly" && weekdays.length === 0) {
+      setError("Выберите хотя бы один день недели");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -97,6 +107,9 @@ function HabitDialog({
         description: description.trim(),
         categoryId: activeCategoryId,
         reminderTime,
+        repeat,
+        weekdays: repeat === "weekly" ? [...weekdays].sort((a, b) => a - b) : [],
+        monthDay: repeat === "monthly" ? monthDay : null,
       };
 
       if (habit) {
@@ -123,8 +136,8 @@ function HabitDialog({
       title={habit ? "Редактировать привычку" : "Новая привычка"}
       description={
         habit
-          ? "Измените название, описание, категорию или время напоминания."
-          : "Небольшое действие, которое хочется повторять каждый день."
+          ? "Измените название, описание, категорию, повторение или время напоминания."
+          : "Небольшое действие, которое хочется повторять регулярно."
       }
     >
       {categories.length === 0 ? (
@@ -170,7 +183,87 @@ function HabitDialog({
             </Select>
           </Field>
 
-          <Field label="Напоминание" htmlFor="habit-reminder" hint="Необязательно">
+          <Field
+            label="Повторение"
+            hint={REPEAT_OPTIONS.find((option) => option.value === repeat)?.hint}
+          >
+            <div
+              role="group"
+              aria-label="Как часто повторять привычку"
+              className="grid grid-cols-3 gap-1.5 rounded-2xl border border-line bg-cream/60 p-1.5"
+            >
+              {REPEAT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={repeat === option.value}
+                  onClick={() => setRepeat(option.value)}
+                  className={cn(
+                    "rounded-xl px-2 py-2 text-[11px] font-semibold transition sm:text-[12px]",
+                    repeat === option.value
+                      ? "bg-forest-solid text-ivory shadow-sm"
+                      : "text-muted hover:bg-surface hover:text-ink",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {repeat === "weekly" ? (
+              <div className="mt-2.5 grid grid-cols-7 gap-1.5">
+                {WEEKDAY_OPTIONS.map((day) => {
+                  const active = weekdays.includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      type="button"
+                      aria-pressed={active}
+                      title={day.label}
+                      onClick={() =>
+                        setWeekdays((current) =>
+                          active
+                            ? current.filter((value) => value !== day.value)
+                            : [...current, day.value].sort((a, b) => a - b),
+                        )
+                      }
+                      className={cn(
+                        "h-10 rounded-xl border text-[12px] font-semibold transition",
+                        active
+                          ? "border-forest-solid bg-forest-solid text-ivory shadow-sm"
+                          : "border-line bg-cream/60 text-muted hover:border-forest/30 hover:text-ink",
+                      )}
+                    >
+                      {day.short}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {repeat === "monthly" ? (
+              <div className="mt-2.5 space-y-1.5">
+                <Select
+                  value={monthDay}
+                  aria-label="День месяца"
+                  onChange={(event) => setMonthDay(Number(event.target.value))}
+                >
+                  {Array.from({ length: 31 }, (_, index) => index + 1).map((day) => (
+                    <option key={day} value={day}>
+                      {monthDayLabel(day)}
+                    </option>
+                  ))}
+                </Select>
+                {monthDay > 28 ? (
+                  <p className="text-[11px] leading-relaxed text-muted">
+                    В коротких месяцах привычка попадёт на последний день месяца.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </Field>
+
+          <Field label="Напоминание" htmlFor="habit-reminder" hint="Только в запланированные дни">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <BellRing

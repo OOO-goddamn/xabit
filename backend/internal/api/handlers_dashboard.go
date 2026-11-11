@@ -10,16 +10,18 @@ import (
 )
 
 type dashboardHabit struct {
-	ID           int64              `json:"id"`
-	Name         string             `json:"name"`
-	Description  string             `json:"description"`
-	CategoryID   int64              `json:"categoryId"`
-	CategoryName string             `json:"categoryName"`
-	ReminderTime string             `json:"reminderTime"`
-	Completion   *models.Completion `json:"completion"`
-	Week         []models.DayStatus `json:"week"`
-	Streak       int                `json:"streak"`
-	Done30       int                `json:"done30"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	CategoryID   int64  `json:"categoryId"`
+	CategoryName string `json:"categoryName"`
+	ReminderTime string `json:"reminderTime"`
+	models.Schedule
+	Due        bool               `json:"due"`
+	Completion *models.Completion `json:"completion"`
+	Week       []models.DayStatus `json:"week"`
+	Streak     int                `json:"streak"`
+	Done30     int                `json:"done30"`
 }
 
 type dashboardStats struct {
@@ -86,10 +88,12 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := make([]dashboardHabit, 0, len(habits))
-	stats := dashboardStats{Total: len(habits)}
+	stats := dashboardStats{}
 	done30Total := 0
+	due30Total := 0
 
 	for _, habit := range habits {
+		dueToday := habit.DueOn(date)
 		item := dashboardHabit{
 			ID:           habit.ID,
 			Name:         habit.Name,
@@ -97,14 +101,23 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 			CategoryID:   habit.CategoryID,
 			CategoryName: habit.CategoryName,
 			ReminderTime: habit.ReminderTime,
+			Schedule:     habit.Schedule,
+			Due:          dueToday,
 			Week:         make([]models.DayStatus, 0, 7),
-			Streak:       streakOn(doneByHabit[habit.ID], date),
+			Streak:       streakOn(doneByHabit[habit.ID], date, habit.Schedule),
 			Done30:       countDoneBetween(doneDates[habit.ID], date.AddDate(0, 0, -29), date),
+		}
+
+		if dueToday {
+			stats.Total++
 		}
 
 		for offset := 0; offset < 7; offset++ {
 			day := weekStart.AddDate(0, 0, offset)
-			dayStatus := models.DayStatus{Date: day.Format(time.DateOnly)}
+			dayStatus := models.DayStatus{
+				Date: day.Format(time.DateOnly),
+				Due:  habit.DueOn(day),
+			}
 			if completion, ok := completionByKey[completionKey(habit.ID, dayStatus.Date)]; ok {
 				status := completion.Status
 				dayStatus.Status = &status
@@ -115,11 +128,13 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		if completion, ok := completionByKey[completionKey(habit.ID, date.Format(time.DateOnly))]; ok {
 			completion := completion
 			item.Completion = &completion
-			switch completion.Status {
-			case models.StatusDone:
-				stats.Done++
-			case models.StatusSkipped:
-				stats.Skipped++
+			if dueToday {
+				switch completion.Status {
+				case models.StatusDone:
+					stats.Done++
+				case models.StatusSkipped:
+					stats.Skipped++
+				}
 			}
 		}
 
@@ -127,13 +142,14 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 			stats.BestStreak = item.Streak
 		}
 		done30Total += item.Done30
+		due30Total += habit.DueCountBetween(date.AddDate(0, 0, -29), date)
 
 		result = append(result, item)
 	}
 
 	stats.Remaining = stats.Total - stats.Done - stats.Skipped
-	if len(habits) > 0 {
-		stats.Rate30 = round1(float64(done30Total) / float64(len(habits)*30) * 100)
+	if due30Total > 0 {
+		stats.Rate30 = round1(float64(done30Total) / float64(due30Total) * 100)
 	}
 
 	writeJSON(w, http.StatusOK, dashboardResponse{
@@ -154,19 +170,25 @@ func startOfWeek(date time.Time) time.Time {
 	return date.AddDate(0, 0, -offset)
 }
 
-func streakOn(doneDays map[string]bool, on time.Time) int {
+func streakOn(doneDays map[string]bool, on time.Time, schedule models.Schedule) int {
 	if len(doneDays) == 0 {
 		return 0
 	}
 
 	cursor := on
-	if !doneDays[cursor.Format(time.DateOnly)] {
+	if schedule.DueOn(cursor) && !doneDays[cursor.Format(time.DateOnly)] {
+		// The current day is still ahead: do not break the streak until it ends.
 		cursor = cursor.AddDate(0, 0, -1)
 	}
 
 	streak := 0
-	for doneDays[cursor.Format(time.DateOnly)] {
-		streak++
+	for offset := 0; offset < 730; offset++ {
+		if schedule.DueOn(cursor) {
+			if !doneDays[cursor.Format(time.DateOnly)] {
+				break
+			}
+			streak++
+		}
 		cursor = cursor.AddDate(0, 0, -1)
 	}
 	return streak
