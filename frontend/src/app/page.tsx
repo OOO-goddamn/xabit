@@ -10,6 +10,7 @@ import {
   CircleSlash,
   Flame,
   Loader2,
+  Minus,
   Plus,
   Sparkles,
   Sprout,
@@ -377,7 +378,10 @@ export default function DashboardPage() {
           <Flame size={13} className="text-gold" /> Серия растёт за выполненные дни подряд
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <CalendarDays size={13} className="text-muted/60" /> Бледная галочка — не по расписанию
+          <CalendarDays size={13} className="text-muted/60" /> Бледная галочка — отдых после выполненного дня
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Minus size={13} className="text-muted/60" /> Тире — день отдыха без выполненного планового дня
         </span>
       </div>
 

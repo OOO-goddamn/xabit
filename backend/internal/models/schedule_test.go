@@ -57,3 +57,49 @@ func TestScheduleDueCountBetween(t *testing.T) {
 		t.Fatalf("monthly DueCountBetween() = %d, want 3", got)
 	}
 }
+
+func TestSchedulePreviousDue(t *testing.T) {
+	tests := []struct {
+		name     string
+		schedule Schedule
+		date     string
+		want     string
+	}{
+		{
+			"weekly off-day",
+			Schedule{Repeat: "weekly", Weekdays: []int{1, 3}},
+			"2026-11-12",
+			"2026-11-11",
+		},
+		{
+			"weekly across weekend",
+			Schedule{Repeat: "weekly", Weekdays: []int{1, 5}},
+			"2026-11-09",
+			"2026-11-06",
+		},
+		{
+			"monthly across month",
+			Schedule{Repeat: "monthly", MonthDay: intPtr(1)},
+			"2026-03-01",
+			"2026-02-01",
+		},
+		{
+			"monthly fallback day",
+			Schedule{Repeat: "monthly", MonthDay: intPtr(31)},
+			"2026-03-10",
+			"2026-02-28",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, ok := test.schedule.PreviousDue(day(test.date))
+			if !ok {
+				t.Fatalf("PreviousDue(%s) not found", test.date)
+			}
+			if value := got.Format(time.DateOnly); value != test.want {
+				t.Fatalf("PreviousDue(%s) = %s, want %s", test.date, value, test.want)
+			}
+		})
+	}
+}

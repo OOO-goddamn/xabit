@@ -45,6 +45,7 @@ export interface DayStatus {
   date: string;
   status: CompletionStatus | null;
   due?: boolean;
+  covered?: boolean;
 }
 
 export interface DashboardHabit extends Habit {
@@ -53,6 +54,7 @@ export interface DashboardHabit extends Habit {
   streak: number;
   done30: number;
   due?: boolean;
+  covered?: boolean;
 }
 
 export interface DashboardStats {

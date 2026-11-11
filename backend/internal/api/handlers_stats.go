@@ -105,12 +105,13 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 	totals := statsTotals{}
 
 	for _, habit := range habits {
+		doneSet := dateSet(doneDates[habit.ID])
 		item := statsHabit{
 			ID:           habit.ID,
 			Name:         habit.Name,
 			CategoryName: habit.CategoryName,
 			History:      make([]models.DayStatus, 0, days),
-			Streak:       streakOn(dateSet(doneDates[habit.ID]), to, habit.Schedule),
+			Streak:       streakOn(doneSet, to, habit.Schedule),
 		}
 
 		statuses := statusByHabit[habit.ID]
@@ -118,7 +119,11 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 			date := from.AddDate(0, 0, offset)
 			key := date.Format(time.DateOnly)
 			due := habit.DueOn(date)
-			dayStatus := models.DayStatus{Date: key, Due: due}
+			dayStatus := models.DayStatus{
+				Date:    key,
+				Due:     due,
+				Covered: coveredOn(date, habit.Schedule, doneSet),
+			}
 
 			if due {
 				totals.Possible++

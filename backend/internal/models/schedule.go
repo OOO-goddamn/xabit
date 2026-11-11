@@ -43,6 +43,19 @@ func (s Schedule) DueOn(date time.Time) bool {
 	}
 }
 
+// PreviousDue returns the latest planned day strictly before date. The lookup
+// is bounded by a year, which is well above the longest gap between planned
+// days (daily: 1, weekly: 7, monthly: at most 31).
+func (s Schedule) PreviousDue(date time.Time) (time.Time, bool) {
+	for offset := 1; offset <= 370; offset++ {
+		cursor := date.AddDate(0, 0, -offset)
+		if s.DueOn(cursor) {
+			return cursor, true
+		}
+	}
+	return time.Time{}, false
+}
+
 // DueCountBetween counts the planned days in the inclusive [from, to] range.
 func (s Schedule) DueCountBetween(from, to time.Time) int {
 	count := 0

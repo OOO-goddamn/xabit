@@ -234,6 +234,9 @@ export default function StatsPage() {
                   <span className="h-2.5 w-2.5 rounded-[3px] bg-line/70" /> Нет отметки
                 </span>
                 <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-[3px] bg-forest/20" /> Ритм сохранён
+                </span>
+                <span className="inline-flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-[3px] border border-dashed border-line bg-transparent" />{" "}
                   Не по расписанию
                 </span>
@@ -257,6 +260,7 @@ export default function StatsPage() {
                     <div className="flex flex-1 gap-[3px]">
                       {habit.history.map((day) => {
                         const offDay = day.due === false && !day.status;
+                        const covered = offDay && day.covered === true;
 
                         return (
                           <span
@@ -266,17 +270,21 @@ export default function StatsPage() {
                                 ? "выполнено"
                                 : day.status === "skipped"
                                   ? "пропущено"
-                                  : offDay
-                                    ? "не по расписанию"
-                                    : "нет отметки"
+                                  : covered
+                                    ? "не по расписанию, ритм сохранён"
+                                    : offDay
+                                      ? "не по расписанию"
+                                      : "нет отметки"
                             }`}
                             className={cn(
                               "h-4 flex-1 rounded-[3px] transition hover:opacity-70",
                               day.status === "done" && "bg-forest",
                               day.status === "skipped" && "bg-clay/50",
-                              !day.status && !offDay && "bg-line/60",
+                              covered && "bg-forest/15",
                               offDay &&
+                                !covered &&
                                 "border border-dashed border-line/70 bg-transparent",
+                              !day.status && !offDay && "bg-line/60",
                               day.date === data.to && "ring-1 ring-forest/50 ring-offset-1",
                             )}
                           />

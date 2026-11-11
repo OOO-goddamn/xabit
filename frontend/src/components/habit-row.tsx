@@ -37,6 +37,7 @@ export function HabitRow({
   const isFuture = date > today;
   const due = habit.due !== false;
   const offDay = !due && !status;
+  const covered = offDay && habit.covered === true;
   const disabled = pending || isFuture || offDay;
   const isDone = status === "done";
   const isSkipped = status === "skipped";
@@ -60,14 +61,18 @@ export function HabitRow({
           aria-pressed={isDone}
           aria-label={
             offDay
-              ? `Привычка «${habit.name}» сегодня не по расписанию`
+              ? covered
+                ? `Привычка «${habit.name}»: сегодня отдых, предыдущий плановый день выполнен`
+                : `Привычка «${habit.name}» сегодня не по расписанию`
               : isDone
                 ? `Снять отметку с привычки «${habit.name}»`
                 : `Отметить привычку «${habit.name}» выполненной`
           }
           title={
             offDay
-              ? "Сегодня не по расписанию — отдых"
+              ? covered
+                ? "Не по расписанию — предыдущий плановый день выполнен"
+                : "Сегодня не по расписанию — отдых"
               : isFuture
                 ? "Нельзя отметить будущий день"
                 : undefined
@@ -77,7 +82,8 @@ export function HabitRow({
             isDone &&
               "border-forest-solid bg-forest-solid text-ivory shadow-[0_8px_18px_-10px_rgba(29,92,72,0.9)]",
             isSkipped && "border-clay/30 bg-clay-soft text-clay",
-            offDay && "border-dashed border-line/80 bg-cream/40 text-muted/40",
+            covered && "border-dashed border-forest/30 bg-forest/5 text-forest/45",
+            offDay && !covered && "border-dashed border-line/80 bg-cream/40 text-muted/40",
             !status &&
               !offDay &&
               "border-line bg-cream text-muted hover:border-forest/50 hover:bg-forest-soft/60 hover:text-forest",
@@ -91,8 +97,10 @@ export function HabitRow({
             <Check size={20} strokeWidth={3} />
           ) : isSkipped ? (
             <Minus size={18} strokeWidth={3} />
-          ) : offDay ? (
+          ) : covered ? (
             <Check size={20} strokeWidth={3} className="opacity-30" />
+          ) : offDay ? (
+            <Minus size={18} strokeWidth={3} className="opacity-40" />
           ) : (
             <span className="h-2 w-2 rounded-full bg-line transition group-hover:bg-forest/40" />
           )}

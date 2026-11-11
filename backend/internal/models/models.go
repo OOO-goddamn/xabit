@@ -41,7 +41,8 @@ type Completion struct {
 }
 
 type DayStatus struct {
-	Date   string  `json:"date"`
-	Status *string `json:"status"`
-	Due    bool    `json:"due"`
+	Date    string  `json:"date"`
+	Status  *string `json:"status"`
+	Due     bool    `json:"due"`
+	Covered bool    `json:"covered"`
 }

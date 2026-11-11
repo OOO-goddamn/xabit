@@ -18,6 +18,7 @@ type dashboardHabit struct {
 	ReminderTime string `json:"reminderTime"`
 	models.Schedule
 	Due        bool               `json:"due"`
+	Covered    bool               `json:"covered"`
 	Completion *models.Completion `json:"completion"`
 	Week       []models.DayStatus `json:"week"`
 	Streak     int                `json:"streak"`
@@ -103,6 +104,7 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 			ReminderTime: habit.ReminderTime,
 			Schedule:     habit.Schedule,
 			Due:          dueToday,
+			Covered:      coveredOn(date, habit.Schedule, doneByHabit[habit.ID]),
 			Week:         make([]models.DayStatus, 0, 7),
 			Streak:       streakOn(doneByHabit[habit.ID], date, habit.Schedule),
 			Done30:       countDoneBetween(doneDates[habit.ID], date.AddDate(0, 0, -29), date),
@@ -115,8 +117,9 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		for offset := 0; offset < 7; offset++ {
 			day := weekStart.AddDate(0, 0, offset)
 			dayStatus := models.DayStatus{
-				Date: day.Format(time.DateOnly),
-				Due:  habit.DueOn(day),
+				Date:    day.Format(time.DateOnly),
+				Due:     habit.DueOn(day),
+				Covered: coveredOn(day, habit.Schedule, doneByHabit[habit.ID]),
 			}
 			if completion, ok := completionByKey[completionKey(habit.ID, dayStatus.Date)]; ok {
 				status := completion.Status
@@ -163,6 +166,21 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 
 func completionKey(habitID int64, date string) string {
 	return strconv.FormatInt(habitID, 10) + "|" + date
+}
+
+// coveredOn reports whether an off-day continues a completed rhythm: the most
+// recent planned day before it was marked done. Such days get a faint checkmark
+// that lasts until the next planned day, while off-days after a miss stay
+// neutral and never look like completions.
+func coveredOn(day time.Time, schedule models.Schedule, doneDays map[string]bool) bool {
+	if schedule.DueOn(day) {
+		return false
+	}
+	previous, ok := schedule.PreviousDue(day)
+	if !ok {
+		return false
+	}
+	return doneDays[previous.Format(time.DateOnly)]
 }
 
 func startOfWeek(date time.Time) time.Time {
