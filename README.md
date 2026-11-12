@@ -138,6 +138,18 @@ Workflow `.github/workflows/deploy-pages.yml` собирает фронтенд 
 - не входят в «осталось сегодня», выполняемость и серии — серия растёт только за запланированные дни;
 - не вызывают напоминаний ни в открытой вкладке, ни через Web Push.
 
+### Количественные привычки
+
+У привычки можно задать цель на день — например, 60 минут учёбы, 100 приседаний или 8000 шагов. В форме создания/редактирования это поля «Цель на день», «Единица измерения» и «Шаг кнопки +».
+
+- В строке привычки видно `30 / 60 мин`, полосу прогресса, кнопки `−`/`+ шаг` и поле для точного значения.
+- Любое значение больше нуля сохраняет прогресс дня: статус `progress` и поле `value` в `habit_completions`.
+- При достижении цели статус становится `done`; явный пропуск остаётся `skipped` с нулевым значением.
+- Серия, выполняемость и счётчики «за 30 дней» растут только когда цель достигнута. Частичные дни видны янтарным маркером в неделе и истории статистики.
+- Нажатие на большой круг сразу засчитывает цель. Повторное нажатие на выполненной привычке убирает отметку.
+- Частичный прогресс не считается выполнением: запланированное напоминание на этот день не отменяется. Явный пропуск напоминание отменяет.
+- Привычки без цели (`target_value IS NULL`) работают как раньше — бинарно «выполнено / пропуск».
+
 ### Напоминания
 
 У каждой привычки можно задать время напоминания — поле «Напоминание» в форме создания/редактирования. Оно хранится в `habits.reminder_time` (`TIME`) и трактуется в локальном часовом поясе устройства. Напоминание срабатывает только в запланированные по расписанию дни.
@@ -304,6 +316,9 @@ habits (
                   CHECK (repeat_type IN ('daily', 'weekly', 'monthly')),
     weekdays      INT[] NOT NULL DEFAULT '{}',
     month_day     SMALLINT CHECK (month_day BETWEEN 1 AND 31),
+    target_value  INT CHECK (target_value > 0),
+    unit          TEXT NOT NULL DEFAULT '',
+    step_value    INT NOT NULL DEFAULT 1 CHECK (step_value > 0),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 )
 
@@ -311,7 +326,8 @@ habit_completions (
     id         BIGSERIAL PRIMARY KEY,
     habit_id   BIGINT NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
     date       DATE NOT NULL,
-    status     TEXT NOT NULL CHECK (status IN ('done', 'skipped')),
+    status     TEXT NOT NULL CHECK (status IN ('done', 'skipped', 'progress')),
+    value      INT NOT NULL DEFAULT 0 CHECK (value >= 0),
     note       TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -342,8 +358,9 @@ reminder_deliveries (
 
 - На один день у привычки — одна отметка. Сохранение через `PUT /api/completions` делает upsert по паре `(habit_id, date)`.
 - Удаление привычки каскадно удаляет её историю; категорию с привычками удалить нельзя (`409`).
-- Статусы: `done` — выполнено, `skipped` — пропущено. Отсутствие записи означает «нет отметки».
-- Серия считается по подряд идущим дням со статусом `done`; пропуск или отсутствие отметки прерывают серию.
+- Статусы: `done` — выполнено, `skipped` — пропущено, `progress` — есть частичный прогресс, цель не достигнута. Отсутствие записи означает «нет отметки».
+- `value` хранит количество за день; у бинарных привычек всегда `0`.
+- Серия считается по подряд идущим запланированным дням со статусом `done`; пропуск, частичный прогресс или отсутствие отметки прерывают серию.
 
 ## API
 
@@ -355,12 +372,12 @@ reminder_deliveries (
 | `PATCH`  | `/api/categories/{id}`        | Переименовать категорию |
 | `DELETE` | `/api/categories/{id}`        | Удалить пустую категорию |
 | `GET`    | `/api/habits?categoryId=1`    | Привычки, опционально по категории |
-| `POST`   | `/api/habits`                 | Создать привычку `{ name, description, categoryId, reminderTime, repeat, weekdays, monthDay }` |
+| `POST`   | `/api/habits`                 | Создать привычку `{ name, description, categoryId, reminderTime, targetValue, unit, stepValue, repeat, weekdays, monthDay }` |
 | `GET`    | `/api/habits/{id}`            | Одна привычка |
-| `PATCH`  | `/api/habits/{id}`            | Обновить привычку (`reminderTime` — `"HH:MM"` или `""`) |
+| `PATCH`  | `/api/habits/{id}`            | Обновить привычку (`reminderTime` — `"HH:MM"` или `""`; `targetValue` — число или `null`) |
 | `DELETE` | `/api/habits/{id}`            | Удалить привычку и её историю |
 | `GET`    | `/api/completions?from=...&to=...&habitId=...` | Отметки за период |
-| `PUT`    | `/api/completions`            | Upsert отметки `{ habitId, date, status, note }` |
+| `PUT`    | `/api/completions`            | Upsert отметки `{ habitId, date, status, value, note }` |
 | `DELETE` | `/api/completions?habitId=1&date=2026-11-04` | Убрать отметку |
 | `GET`    | `/api/dashboard?date=2026-11-04` | День: привычки по категориям, неделя, серии, сводка |
 | `GET`    | `/api/stats?days=30&to=2026-11-04` | Статистика: сводка, дни, история по привычкам |

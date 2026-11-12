@@ -15,6 +15,7 @@ import {
 import type { CompletionStatus, DashboardHabit } from "@/lib/types";
 import { cn, formatShortDate } from "@/lib/utils";
 
+import { QuantityProgress } from "./quantity-progress";
 import { WeekDots } from "./week-dots";
 
 export function HabitRow({
@@ -23,6 +24,7 @@ export function HabitRow({
   today,
   pending,
   onSetStatus,
+  onSetProgress,
   onOpenNote,
 }: {
   habit: DashboardHabit;
@@ -30,6 +32,7 @@ export function HabitRow({
   today: string;
   pending: boolean;
   onSetStatus: (habit: DashboardHabit, status: CompletionStatus | null) => void;
+  onSetProgress: (habit: DashboardHabit, value: number) => void;
   onOpenNote: (habit: DashboardHabit) => void;
 }) {
   const status = habit.completion?.status ?? null;
@@ -41,12 +44,19 @@ export function HabitRow({
   const disabled = pending || isFuture || offDay;
   const isDone = status === "done";
   const isSkipped = status === "skipped";
+  const isProgress = status === "progress";
+  const target = habit.targetValue ?? 0;
+  const isQuantity = target > 0;
+  const value = habit.completion?.value ?? 0;
+  const progressPercent =
+    isQuantity && target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
 
   return (
     <article
       className={cn(
         "group flex flex-col gap-3 rounded-[24px] border bg-surface p-4 shadow-[0_1px_0_rgba(23,51,42,0.02)] transition-all duration-200 sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-4",
         isDone && "border-forest/25 bg-gradient-to-r from-forest-soft/55 via-surface to-surface",
+        isProgress && "border-gold/30 bg-gradient-to-r from-gold-soft/40 via-surface to-surface",
         isSkipped && "border-clay/20 bg-gradient-to-r from-clay-soft/35 via-surface to-surface",
         !status && offDay && "border-dashed border-line/80 bg-cream/35 opacity-80",
         !status && !offDay && "border-line hover:border-forest/20 hover:shadow-card",
@@ -57,7 +67,13 @@ export function HabitRow({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => onSetStatus(habit, isDone ? null : "done")}
+          onClick={() =>
+            isQuantity
+              ? isDone
+                ? onSetStatus(habit, null)
+                : onSetProgress(habit, target)
+              : onSetStatus(habit, isDone ? null : "done")
+          }
           aria-pressed={isDone}
           aria-label={
             offDay
@@ -66,7 +82,9 @@ export function HabitRow({
                 : `Привычка «${habit.name}» сегодня не по расписанию`
               : isDone
                 ? `Снять отметку с привычки «${habit.name}»`
-                : `Отметить привычку «${habit.name}» выполненной`
+                : isQuantity
+                  ? `Засчитать привычку «${habit.name}» на ${target} ${habit.unit}`
+                  : `Отметить привычку «${habit.name}» выполненной`
           }
           title={
             offDay
@@ -75,12 +93,15 @@ export function HabitRow({
                 : "Сегодня не по расписанию — отдых"
               : isFuture
                 ? "Нельзя отметить будущий день"
-                : undefined
+                : isQuantity && !isDone
+                  ? `Засчитать цель: ${target} ${habit.unit}`
+                  : undefined
           }
           className={cn(
             "grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 transition-all duration-200",
             isDone &&
               "border-forest-solid bg-forest-solid text-ivory shadow-[0_8px_18px_-10px_rgba(29,92,72,0.9)]",
+            isProgress && "border-gold/50 bg-gold-soft text-gold-ink",
             isSkipped && "border-clay/30 bg-clay-soft text-clay",
             covered && "border-dashed border-forest/30 bg-forest/5 text-forest/45",
             offDay && !covered && "border-dashed border-line/80 bg-cream/40 text-muted/40",
@@ -95,6 +116,8 @@ export function HabitRow({
             <Loader2 size={18} className="animate-spin" />
           ) : isDone ? (
             <Check size={20} strokeWidth={3} />
+          ) : isProgress ? (
+            <span className="text-[10px] font-bold leading-none">{progressPercent}%</span>
           ) : isSkipped ? (
             <Minus size={18} strokeWidth={3} />
           ) : covered ? (
@@ -126,6 +149,11 @@ export function HabitRow({
                 {habit.streak}
               </span>
             ) : null}
+            {isProgress ? (
+              <span className="rounded-full bg-gold-soft px-2 py-0.5 text-[10px] font-bold text-gold-ink">
+                В процессе
+              </span>
+            ) : null}
             {isSkipped ? (
               <span className="rounded-full bg-clay-soft px-2 py-0.5 text-[10px] font-bold text-clay">
                 Пропущено
@@ -142,6 +170,18 @@ export function HabitRow({
           <p className="mt-0.5 truncate text-[13px] text-muted">
             {habit.description || (offDay ? "Сегодня отдых по расписанию" : "Без описания")}
           </p>
+
+          {isQuantity && !offDay ? (
+            <QuantityProgress
+              key={`${habit.id}-${value}`}
+              value={value}
+              target={target}
+              unit={habit.unit}
+              step={habit.stepValue}
+              disabled={disabled}
+              onChange={(next) => onSetProgress(habit, next)}
+            />
+          ) : null}
 
           {habit.reminderTime && due ? (
             <p className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-forest">
@@ -160,7 +200,12 @@ export function HabitRow({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 pl-14 sm:shrink-0 sm:pl-0">
-        <WeekDots week={habit.week} today={today} />
+        <WeekDots
+          week={habit.week}
+          today={today}
+          target={habit.targetValue}
+          unit={habit.unit}
+        />
         <div className="ml-auto flex items-center gap-0.5 sm:ml-1">
           <button
             type="button"
@@ -186,18 +231,16 @@ export function HabitRow({
           >
             <CircleSlash size={15} />
           </button>
-          {status ? (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onSetStatus(habit, null)}
-              title="Убрать отметку"
-              aria-label={`Убрать отметку с привычки «${habit.name}»`}
-              className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink disabled:opacity-40"
-            >
-              <RotateCcw size={14} />
-            </button>
-          ) : null}
+          <button
+            type="button"
+            disabled={disabled || !status}
+            onClick={() => onSetStatus(habit, null)}
+            title="Убрать отметку"
+            aria-label={`Убрать отметку с привычки «${habit.name}»`}
+            className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink disabled:opacity-40"
+          >
+            <RotateCcw size={14} />
+          </button>
         </div>
       </div>
 

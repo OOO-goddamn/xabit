@@ -1,4 +1,4 @@
-export type CompletionStatus = "done" | "skipped";
+export type CompletionStatus = "done" | "skipped" | "progress";
 
 export type RepeatType = "daily" | "weekly" | "monthly";
 
@@ -27,6 +27,9 @@ export interface Habit {
   categoryId: number;
   categoryName: string;
   reminderTime: string;
+  targetValue: number | null;
+  unit: string;
+  stepValue: number;
   repeat: RepeatType;
   weekdays: number[];
   monthDay: number | null;
@@ -38,6 +41,7 @@ export interface Completion {
   habitId: number;
   date: string;
   status: CompletionStatus;
+  value: number;
   note: string;
 }
 
@@ -46,6 +50,7 @@ export interface DayStatus {
   status: CompletionStatus | null;
   due?: boolean;
   covered?: boolean;
+  value?: number;
 }
 
 export interface DashboardHabit extends Habit {
@@ -93,6 +98,9 @@ export interface StatsHabit {
   id: number;
   name: string;
   categoryName: string;
+  targetValue: number | null;
+  unit: string;
+  stepValue: number;
   done: number;
   skipped: number;
   rate: number;
@@ -114,6 +122,9 @@ export interface HabitInput {
   description: string;
   categoryId: number;
   reminderTime: string;
+  targetValue: number | null;
+  unit: string;
+  stepValue: number;
   repeat: RepeatType;
   weekdays: number[];
   monthDay: number | null;
@@ -137,5 +148,6 @@ export interface CompletionInput {
   habitId: number;
   date: string;
   status: CompletionStatus;
+  value?: number;
   note: string;
 }

@@ -150,13 +150,13 @@ func (s *Service) check(ctx context.Context, now time.Time) {
 		}
 		date := target.Format(time.DateOnly)
 
-		completed, err := s.store.CompletionExists(ctx, candidate.HabitID, date)
+		settled, err := s.store.CompletionSettled(ctx, candidate.HabitID, date)
 		if err != nil {
 			s.logger.Error("check completion failed",
 				"habit", candidate.HabitID, "date", date, "error", err)
 			continue
 		}
-		if completed {
+		if settled {
 			continue
 		}
 

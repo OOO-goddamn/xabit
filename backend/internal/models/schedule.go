@@ -1,5 +1,7 @@
 package models
 
+import "slices"
+
 import "time"
 
 // Schedule describes when a habit is expected to be done.
@@ -21,12 +23,7 @@ func (s Schedule) DueOn(date time.Time) bool {
 		if iso == 0 {
 			iso = 7
 		}
-		for _, day := range s.Weekdays {
-			if day == iso {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(s.Weekdays, iso)
 	case "monthly":
 		if s.MonthDay == nil {
 			return true

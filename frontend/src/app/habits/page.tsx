@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Sprout,
+  Target,
   Trash2,
 } from "lucide-react";
 
@@ -232,6 +233,9 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
             const tone = toneFor(habit.categoryId);
             const status = habit.completion?.status;
             const due = habit.due !== false;
+            const target = habit.targetValue ?? 0;
+            const isQuantity = target > 0;
+            const value = habit.completion?.value ?? 0;
 
             return (
               <article
@@ -285,6 +289,14 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
                   </p>
                 ) : null}
 
+                {isQuantity ? (
+                  <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold text-gold-ink">
+                    <Target size={11} />
+                    {target} {habit.unit || "ед."} в день
+                    {habit.stepValue > 1 ? ` · шаг ${habit.stepValue}` : ""}
+                  </p>
+                ) : null}
+
                 {habit.reminderTime ? (
                   <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold text-forest">
                     <BellRing size={11} />
@@ -294,7 +306,13 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
 
                 <div className="mt-auto pt-5">
                   <div className="flex items-end justify-between gap-3">
-                    <WeekDots week={habit.week} today={data.date} compact />
+                    <WeekDots
+                      week={habit.week}
+                      today={data.date}
+                      compact
+                      target={habit.targetValue}
+                      unit={habit.unit}
+                    />
                     {habit.streak > 0 ? (
                       <span
                         className="inline-flex items-center gap-1 rounded-full bg-gold-soft px-2 py-0.5 text-[10px] font-bold text-gold-ink"
@@ -315,18 +333,22 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
                             ? "bg-line/50"
                             : status === "done"
                               ? "bg-forest"
-                              : status === "skipped"
-                                ? "bg-clay"
-                                : "bg-line",
+                              : status === "progress"
+                                ? "bg-gold"
+                                : status === "skipped"
+                                  ? "bg-clay"
+                                  : "bg-line",
                         )}
                       />
                       {!due && !status
                         ? "Сегодня не по расписанию"
                         : status === "done"
                           ? "Сегодня выполнено"
-                          : status === "skipped"
-                            ? "Сегодня пропущено"
-                            : "Сегодня без отметки"}
+                          : status === "progress"
+                            ? `Сегодня ${value} из ${target} ${habit.unit || "ед."}`
+                            : status === "skipped"
+                              ? "Сегодня пропущено"
+                              : "Сегодня без отметки"}
                     </span>
                     <span>{habit.done30} за 30 дней</span>
                   </div>

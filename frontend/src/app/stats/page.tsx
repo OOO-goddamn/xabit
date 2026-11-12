@@ -231,6 +231,9 @@ export default function StatsPage() {
                   <span className="h-2.5 w-2.5 rounded-[3px] bg-clay/50" /> Пропущено
                 </span>
                 <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-[3px] bg-gold/60" /> Прогресс
+                </span>
+                <span className="inline-flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-[3px] bg-line/70" /> Нет отметки
                 </span>
                 <span className="inline-flex items-center gap-1.5">
@@ -261,6 +264,11 @@ export default function StatsPage() {
                       {habit.history.map((day) => {
                         const offDay = day.due === false && !day.status;
                         const covered = offDay && day.covered === true;
+                        const isProgress = day.status === "progress";
+                        const value = day.value ?? 0;
+                        const target = habit.targetValue ?? 0;
+                        const progressPercent =
+                          target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
 
                         return (
                           <span
@@ -268,17 +276,20 @@ export default function StatsPage() {
                             title={`${formatShortDate(day.date)}: ${
                               day.status === "done"
                                 ? "выполнено"
-                                : day.status === "skipped"
-                                  ? "пропущено"
-                                  : covered
-                                    ? "не по расписанию, ритм сохранён"
-                                    : offDay
-                                      ? "не по расписанию"
-                                      : "нет отметки"
+                                : isProgress
+                                  ? `прогресс ${value} из ${target}${habit.unit ? ` ${habit.unit}` : ""}`
+                                  : day.status === "skipped"
+                                    ? "пропущено"
+                                    : covered
+                                      ? "не по расписанию, ритм сохранён"
+                                      : offDay
+                                        ? "не по расписанию"
+                                        : "нет отметки"
                             }`}
                             className={cn(
-                              "h-4 flex-1 rounded-[3px] transition hover:opacity-70",
+                              "relative h-4 flex-1 overflow-hidden rounded-[3px] transition hover:opacity-70",
                               day.status === "done" && "bg-forest",
+                              isProgress && "bg-gold-soft",
                               day.status === "skipped" && "bg-clay/50",
                               covered && "bg-forest/15",
                               offDay &&
@@ -287,7 +298,14 @@ export default function StatsPage() {
                               !day.status && !offDay && "bg-line/60",
                               day.date === data.to && "ring-1 ring-forest/50 ring-offset-1",
                             )}
-                          />
+                          >
+                            {isProgress ? (
+                              <span
+                                className="absolute inset-y-0 left-0 bg-gold"
+                                style={{ width: `${Math.max(12, progressPercent)}%` }}
+                              />
+                            ) : null}
+                          </span>
                         );
                       })}
                     </div>

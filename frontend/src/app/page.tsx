@@ -134,6 +134,46 @@ export default function DashboardPage() {
     }
   }
 
+  async function setProgress(habit: DashboardHabit, value: number) {
+    if (!date) {
+      return;
+    }
+
+    setPendingId(habit.id);
+    const target = habit.targetValue ?? 0;
+    const wasDone = habit.completion?.status === "done";
+
+    try {
+      if (value <= 0) {
+        if (habit.completion) {
+          await api.deleteCompletion(habit.id, date);
+        }
+      } else {
+        await api.saveCompletion({
+          habitId: habit.id,
+          date,
+          value,
+          status: target > 0 && value >= target ? "done" : "progress",
+          note: habit.completion?.note ?? "",
+        });
+      }
+
+      await mutate();
+
+      if (value <= 0) {
+        if (habit.completion) {
+          toast("Отметка убрана", "info");
+        }
+      } else if (target > 0 && value >= target && !wasDone) {
+        toast("Цель достигнута! Привычка закрыта");
+      }
+    } catch (requestError) {
+      toast(errorMessage(requestError), "error");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
   function openNote(habit: DashboardHabit) {
     setNoteHabit(habit);
     setNoteOpen(true);
@@ -360,6 +400,7 @@ export default function DashboardPage() {
                       today={today ?? data.date}
                       pending={pendingId === habit.id}
                       onSetStatus={setStatus}
+                      onSetProgress={setProgress}
                       onOpenNote={openNote}
                     />
                   ))}
@@ -376,6 +417,9 @@ export default function DashboardPage() {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Flame size={13} className="text-gold" /> Серия растёт за выполненные дни подряд
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Target size={13} className="text-gold" /> Янтарный прогресс — цель ещё не достигнута
         </span>
         <span className="inline-flex items-center gap-1.5">
           <CalendarDays size={13} className="text-muted/60" /> Бледная галочка — отдых после выполненного дня

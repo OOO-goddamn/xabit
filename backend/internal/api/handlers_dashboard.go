@@ -16,6 +16,9 @@ type dashboardHabit struct {
 	CategoryID   int64  `json:"categoryId"`
 	CategoryName string `json:"categoryName"`
 	ReminderTime string `json:"reminderTime"`
+	TargetValue  *int   `json:"targetValue"`
+	Unit         string `json:"unit"`
+	StepValue    int    `json:"stepValue"`
 	models.Schedule
 	Due        bool               `json:"due"`
 	Covered    bool               `json:"covered"`
@@ -102,6 +105,9 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 			CategoryID:   habit.CategoryID,
 			CategoryName: habit.CategoryName,
 			ReminderTime: habit.ReminderTime,
+			TargetValue:  habit.TargetValue,
+			Unit:         habit.Unit,
+			StepValue:    habit.StepValue,
 			Schedule:     habit.Schedule,
 			Due:          dueToday,
 			Covered:      coveredOn(date, habit.Schedule, doneByHabit[habit.ID]),
@@ -124,12 +130,14 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 			if completion, ok := completionByKey[completionKey(habit.ID, dayStatus.Date)]; ok {
 				status := completion.Status
 				dayStatus.Status = &status
+				dayStatus.Value = displayValue(completion, habit)
 			}
 			item.Week = append(item.Week, dayStatus)
 		}
 
 		if completion, ok := completionByKey[completionKey(habit.ID, date.Format(time.DateOnly))]; ok {
 			completion := completion
+			completion.Value = displayValue(completion, habit)
 			item.Completion = &completion
 			if dueToday {
 				switch completion.Status {
@@ -166,6 +174,15 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 
 func completionKey(habitID int64, date string) string {
 	return strconv.FormatInt(habitID, 10) + "|" + date
+}
+
+// displayValue fills in the target for old "done" rows that predate quantity
+// habits. Such rows have no amount, but showing 0 / 60 would look broken.
+func displayValue(completion models.Completion, habit models.Habit) int {
+	if completion.Status == models.StatusDone && habit.IsQuantity() && completion.Value == 0 {
+		return *habit.TargetValue
+	}
+	return completion.Value
 }
 
 // coveredOn reports whether an off-day continues a completed rhythm: the most

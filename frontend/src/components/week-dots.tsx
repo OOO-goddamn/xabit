@@ -7,10 +7,14 @@ export function WeekDots({
   week,
   today,
   compact = false,
+  target = 0,
+  unit = "",
 }: {
   week: DayStatus[];
   today?: string;
   compact?: boolean;
+  target?: number | null;
+  unit?: string;
 }) {
   return (
     <div className="flex items-end gap-1 sm:gap-1.5" role="group" aria-label="Неделя">
@@ -19,10 +23,20 @@ export function WeekDots({
         const isFuture = today ? day.date > today : false;
         const offDay = day.due === false && !day.status;
         const covered = offDay && day.covered === true;
+        const isProgress = day.status === "progress";
+        const value = day.value ?? 0;
+        const progressPercent =
+          target && target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
+        const progressLabel =
+          target && target > 0
+            ? `прогресс ${value} из ${target}${unit ? ` ${unit}` : ""}`
+            : `прогресс ${value}`;
         const label = day.status
           ? day.status === "done"
             ? "выполнено"
-            : "пропущено"
+            : isProgress
+              ? progressLabel
+              : "пропущено"
           : covered
             ? "не по расписанию, ритм сохранён"
             : offDay
@@ -45,9 +59,10 @@ export function WeekDots({
               aria-label={accessibleLabel}
               title={`${weekdayLabel(day.date)}, ${formatShortDate(day.date)} — ${label}`}
               className={cn(
-                "grid place-items-center rounded-full border transition-colors",
+                "relative grid place-items-center overflow-hidden rounded-full border transition-colors",
                 compact ? "h-5 w-5" : "h-5 w-5 sm:h-6 sm:w-6",
                 day.status === "done" && "border-forest-solid bg-forest-solid text-ivory",
+                isProgress && "border-gold/45 bg-gold-soft text-gold-ink",
                 day.status === "skipped" && "border-clay/20 bg-clay-soft text-clay",
                 covered && "border-dashed border-forest/30 bg-forest/5 text-forest/45",
                 offDay && !covered && "border-dashed border-line/70 bg-cream/30 text-muted/40",
@@ -58,6 +73,13 @@ export function WeekDots({
             >
               {day.status === "done" ? (
                 <Check size={compact ? 10 : 12} strokeWidth={3.2} />
+              ) : isProgress ? (
+                <span className="relative h-[72%] w-[72%] overflow-hidden rounded-full bg-cream/80">
+                  <span
+                    className="absolute inset-x-0 bottom-0 bg-gold"
+                    style={{ height: `${Math.max(16, progressPercent)}%` }}
+                  />
+                </span>
               ) : day.status === "skipped" ? (
                 <Minus size={compact ? 10 : 12} strokeWidth={3} />
               ) : covered ? (

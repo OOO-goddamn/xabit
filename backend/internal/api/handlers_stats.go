@@ -28,6 +28,9 @@ type statsHabit struct {
 	ID           int64              `json:"id"`
 	Name         string             `json:"name"`
 	CategoryName string             `json:"categoryName"`
+	TargetValue  *int               `json:"targetValue"`
+	Unit         string             `json:"unit"`
+	StepValue    int                `json:"stepValue"`
 	Done         int                `json:"done"`
 	Skipped      int                `json:"skipped"`
 	Rate         float64            `json:"rate"`
@@ -84,12 +87,12 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	statusByHabit := make(map[int64]map[string]string, len(habits))
+	completionByHabit := make(map[int64]map[string]models.Completion, len(habits))
 	for _, completion := range completions {
-		if statusByHabit[completion.HabitID] == nil {
-			statusByHabit[completion.HabitID] = make(map[string]string)
+		if completionByHabit[completion.HabitID] == nil {
+			completionByHabit[completion.HabitID] = make(map[string]models.Completion)
 		}
-		statusByHabit[completion.HabitID][completion.Date] = completion.Status
+		completionByHabit[completion.HabitID][completion.Date] = completion
 	}
 
 	daily := make([]statsDay, 0, days)
@@ -110,11 +113,14 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 			ID:           habit.ID,
 			Name:         habit.Name,
 			CategoryName: habit.CategoryName,
+			TargetValue:  habit.TargetValue,
+			Unit:         habit.Unit,
+			StepValue:    habit.StepValue,
 			History:      make([]models.DayStatus, 0, days),
 			Streak:       streakOn(doneSet, to, habit.Schedule),
 		}
 
-		statuses := statusByHabit[habit.ID]
+		habitCompletions := completionByHabit[habit.ID]
 		for offset := 0; offset < days; offset++ {
 			date := from.AddDate(0, 0, offset)
 			key := date.Format(time.DateOnly)
@@ -130,9 +136,10 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 				daily[dailyIndex[key]].Possible++
 			}
 
-			if status, ok := statuses[key]; ok {
-				status := status
+			if completion, ok := habitCompletions[key]; ok {
+				status := completion.Status
 				dayStatus.Status = &status
+				dayStatus.Value = displayValue(completion, habit)
 				if due {
 					switch status {
 					case models.StatusDone:

@@ -70,6 +70,13 @@ function HabitDialog({
     [...(habit?.weekdays ?? [])].sort((a, b) => a - b),
   );
   const [monthDay, setMonthDay] = useState(habit?.monthDay ?? 1);
+  const [targetValue, setTargetValue] = useState(
+    habit?.targetValue ? String(habit.targetValue) : "",
+  );
+  const [unit, setUnit] = useState(habit?.unit ?? "");
+  const [stepValue, setStepValue] = useState(
+    habit?.targetValue ? String(habit.stepValue || 1) : "1",
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,6 +101,24 @@ function HabitDialog({
       return;
     }
 
+    const parsedTarget =
+      targetValue.trim() === "" ? null : Math.round(Number(targetValue));
+    if (
+      parsedTarget !== null &&
+      (!Number.isFinite(parsedTarget) || parsedTarget <= 0 || parsedTarget > 1_000_000)
+    ) {
+      setError("Цель должна быть от 1 до 1 000 000");
+      return;
+    }
+    const parsedStep = Math.round(Number(stepValue));
+    if (
+      parsedTarget !== null &&
+      (!Number.isFinite(parsedStep) || parsedStep <= 0 || parsedStep > 1_000_000)
+    ) {
+      setError("Шаг должен быть от 1 до 1 000 000");
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -107,6 +132,9 @@ function HabitDialog({
         description: description.trim(),
         categoryId: activeCategoryId,
         reminderTime,
+        targetValue: parsedTarget,
+        unit: parsedTarget !== null ? unit.trim() : "",
+        stepValue: parsedTarget !== null ? parsedStep : 1,
         repeat,
         weekdays: repeat === "weekly" ? [...weekdays].sort((a, b) => a - b) : [],
         monthDay: repeat === "monthly" ? monthDay : null,
@@ -136,7 +164,7 @@ function HabitDialog({
       title={habit ? "Редактировать привычку" : "Новая привычка"}
       description={
         habit
-          ? "Измените название, описание, категорию, повторение или время напоминания."
+          ? "Измените название, описание, категорию, цель, повторение или время напоминания."
           : "Небольшое действие, которое хочется повторять регулярно."
       }
     >
@@ -261,6 +289,49 @@ function HabitDialog({
                 ) : null}
               </div>
             ) : null}
+          </Field>
+
+          <Field
+            label="Цель на день"
+            hint="Необязательно — без цели привычка просто «выполнено / пропуск»"
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={targetValue}
+                aria-label="Цель на день"
+                placeholder="Например, 60"
+                onChange={(event) => setTargetValue(event.target.value)}
+              />
+              <Input
+                value={unit}
+                maxLength={20}
+                aria-label="Единица измерения"
+                placeholder="мин, раз, км…"
+                onChange={(event) => setUnit(event.target.value)}
+              />
+            </div>
+            {targetValue.trim() !== "" ? (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[12px] text-muted">Шаг кнопки «+»</span>
+                <Input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={stepValue}
+                  aria-label="Шаг быстрого добавления"
+                  onChange={(event) => setStepValue(event.target.value)}
+                  className="h-9 w-24"
+                />
+                <span className="text-[12px] text-muted">{unit.trim() || "за раз"}</span>
+              </div>
+            ) : null}
+            <p className="mt-2 text-[11px] leading-relaxed text-muted">
+              Количество можно вводить точно или добавлять шагом. Любое значение больше нуля
+              сохранит прогресс дня, а серия и выполняемость вырастут только при достижении цели.
+            </p>
           </Field>
 
           <Field label="Напоминание" htmlFor="habit-reminder" hint="Только в запланированные дни">

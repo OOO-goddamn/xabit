@@ -182,7 +182,8 @@ func (s *Store) DeleteCategory(ctx context.Context, userID, id int64) error {
 const habitSelect = `
 	SELECT h.id, h.name, h.description, h.category_id, c.name, h.created_at,
 	       COALESCE(to_char(h.reminder_time, 'HH24:MI'), ''),
-	       h.repeat_type, h.weekdays, COALESCE(h.month_day, 0)
+	       h.repeat_type, h.weekdays, COALESCE(h.month_day, 0),
+	       COALESCE(h.target_value, 0), h.unit, COALESCE(h.step_value, 1)
 	FROM habits h
 	JOIN categories c ON c.id = h.category_id`
 
@@ -223,16 +224,17 @@ func (s *Store) GetHabit(ctx context.Context, userID, id int64) (models.Habit, e
 	return habit, err
 }
 
-func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description string, categoryID int64, reminderTime string, schedule models.Schedule) (models.Habit, error) {
+func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description string, categoryID int64, reminderTime string, schedule models.Schedule, targetValue *int, unit string, stepValue int) (models.Habit, error) {
 	var id int64
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO habits (user_id, name, description, category_id, reminder_time, repeat_type, weekdays, month_day)
-		SELECT $1, $2, $3, c.id, NULLIF($5, '')::time, $6, $7, $8
+		INSERT INTO habits (user_id, name, description, category_id, reminder_time, repeat_type, weekdays, month_day, target_value, unit, step_value)
+		SELECT $1, $2, $3, c.id, NULLIF($5, '')::time, $6, $7, $8, $9, $10, $11
 		FROM categories c
 		WHERE c.id = $4 AND c.user_id = $1
 		RETURNING id`,
 		userID, name, description, categoryID, reminderTime,
 		schedule.Repeat, weekdayParams(schedule.Weekdays), monthDayParam(schedule.MonthDay),
+		targetValue, unit, stepValue,
 	).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return models.Habit{}, ErrCategoryNotFound
@@ -243,7 +245,7 @@ func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description
 	return s.GetHabit(ctx, userID, id)
 }
 
-func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, description string, categoryID int64, reminderTime string, schedule models.Schedule) (models.Habit, error) {
+func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, description string, categoryID int64, reminderTime string, schedule models.Schedule, targetValue *int, unit string, stepValue int) (models.Habit, error) {
 	var categoryExists bool
 	if err := s.pool.QueryRow(ctx,
 		`SELECT EXISTS (SELECT 1 FROM categories WHERE id = $1 AND user_id = $2)`,
@@ -258,10 +260,12 @@ func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, descrip
 	tag, err := s.pool.Exec(ctx,
 		`UPDATE habits
 		 SET name = $3, description = $4, category_id = $5, reminder_time = NULLIF($6, '')::time,
-		     repeat_type = $7, weekdays = $8, month_day = $9
+		     repeat_type = $7, weekdays = $8, month_day = $9,
+		     target_value = $10, unit = $11, step_value = $12
 		 WHERE id = $1 AND user_id = $2`,
 		id, userID, name, description, categoryID, reminderTime,
 		schedule.Repeat, weekdayParams(schedule.Weekdays), monthDayParam(schedule.MonthDay),
+		targetValue, unit, stepValue,
 	)
 	if err != nil {
 		return models.Habit{}, err
@@ -269,6 +273,19 @@ func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, descrip
 	if tag.RowsAffected() == 0 {
 		return models.Habit{}, ErrNotFound
 	}
+
+	// Turning a quantity habit back into a binary one must not leave
+	// "progress" rows that no longer make sense. Such days were not completed,
+	// so they become skipped rather than retroactively done.
+	if targetValue == nil {
+		if _, err := s.pool.Exec(ctx,
+			`UPDATE habit_completions SET status = 'skipped', value = 0, updated_at = now()
+			 WHERE habit_id = $1 AND status = 'progress'`, id,
+		); err != nil {
+			return models.Habit{}, err
+		}
+	}
+
 	return s.GetHabit(ctx, userID, id)
 }
 
@@ -291,6 +308,7 @@ func scanHabit(row habitRow) (models.Habit, error) {
 	var habit models.Habit
 	var weekdays []int32
 	var monthDay int
+	var targetValue int
 
 	err := row.Scan(
 		&habit.ID,
@@ -303,6 +321,9 @@ func scanHabit(row habitRow) (models.Habit, error) {
 		&habit.Schedule.Repeat,
 		&weekdays,
 		&monthDay,
+		&targetValue,
+		&habit.Unit,
+		&habit.StepValue,
 	)
 	if err != nil {
 		return habit, err
@@ -311,6 +332,9 @@ func scanHabit(row habitRow) (models.Habit, error) {
 	habit.Schedule.Weekdays = weekdaysToInts(weekdays)
 	if monthDay > 0 {
 		habit.Schedule.MonthDay = &monthDay
+	}
+	if targetValue > 0 {
+		habit.TargetValue = &targetValue
 	}
 	return habit, nil
 }
@@ -365,7 +389,7 @@ func (s *Store) ListCompletions(ctx context.Context, filter CompletionFilter) ([
 		conditions = append(conditions, fmt.Sprintf("c.date <= $%d", len(args)))
 	}
 
-	query := `SELECT c.id, c.habit_id, c.date, c.status, c.note
+	query := `SELECT c.id, c.habit_id, c.date, c.status, c.value, c.note
 		FROM habit_completions c
 		JOIN habits h ON h.id = c.habit_id
 		WHERE ` + strings.Join(conditions, " AND ")
@@ -389,16 +413,16 @@ func (s *Store) ListCompletions(ctx context.Context, filter CompletionFilter) ([
 	return completions, rows.Err()
 }
 
-func (s *Store) UpsertCompletion(ctx context.Context, userID, habitID int64, date time.Time, status, note string) (models.Completion, error) {
+func (s *Store) UpsertCompletion(ctx context.Context, userID, habitID int64, date time.Time, status string, value int, note string) (models.Completion, error) {
 	row := s.pool.QueryRow(ctx, `
-		INSERT INTO habit_completions (habit_id, date, status, note)
-		SELECT h.id, $2, $3, $4
+		INSERT INTO habit_completions (habit_id, date, status, value, note)
+		SELECT h.id, $2, $3, $4, $5
 		FROM habits h
-		WHERE h.id = $1 AND h.user_id = $5
+		WHERE h.id = $1 AND h.user_id = $6
 		ON CONFLICT (habit_id, date)
-		DO UPDATE SET status = EXCLUDED.status, note = EXCLUDED.note, updated_at = now()
-		RETURNING id, habit_id, date, status, note`,
-		habitID, date, status, note, userID,
+		DO UPDATE SET status = EXCLUDED.status, value = EXCLUDED.value, note = EXCLUDED.note, updated_at = now()
+		RETURNING id, habit_id, date, status, value, note`,
+		habitID, date, status, value, note, userID,
 	)
 
 	completion, err := scanCompletion(row)
@@ -462,6 +486,7 @@ func scanCompletion(row habitRow) (models.Completion, error) {
 		&completion.HabitID,
 		&date,
 		&completion.Status,
+		&completion.Value,
 		&completion.Note,
 	)
 	completion.Date = date.Format(time.DateOnly)

@@ -15,6 +15,9 @@ type habitPayload struct {
 	Description  string `json:"description"`
 	CategoryID   int64  `json:"categoryId"`
 	ReminderTime string `json:"reminderTime"`
+	TargetValue  *int   `json:"targetValue"`
+	Unit         string `json:"unit"`
+	StepValue    int    `json:"stepValue"`
 	models.Schedule
 }
 
@@ -54,7 +57,7 @@ func (h *Handler) createHabit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	habit, err := h.store.CreateHabit(r.Context(), currentUserID(r), payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime, payload.Schedule)
+	habit, err := h.store.CreateHabit(r.Context(), currentUserID(r), payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime, payload.Schedule, payload.TargetValue, payload.Unit, payload.StepValue)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -74,7 +77,7 @@ func (h *Handler) updateHabit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	habit, err := h.store.UpdateHabit(r.Context(), currentUserID(r), id, payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime, payload.Schedule)
+	habit, err := h.store.UpdateHabit(r.Context(), currentUserID(r), id, payload.Name, payload.Description, payload.CategoryID, payload.ReminderTime, payload.Schedule, payload.TargetValue, payload.Unit, payload.StepValue)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -140,7 +143,44 @@ func (h *Handler) readHabitPayload(w http.ResponseWriter, r *http.Request) (habi
 	}
 	payload.Schedule = schedule
 
+	target, unit, step, err := normalizeTarget(payload.TargetValue, payload.Unit, payload.StepValue)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return payload, false
+	}
+	payload.TargetValue = target
+	payload.Unit = unit
+	payload.StepValue = step
+
 	return payload, true
+}
+
+const maxUnitLen = 20
+
+// normalizeTarget validates the optional quantity settings. A missing or
+// non-positive target means a classic binary habit, so unit and step are reset
+// to keep old habits unchanged.
+func normalizeTarget(target *int, unit string, step int) (*int, string, int, error) {
+	if target == nil || *target <= 0 {
+		return nil, "", 1, nil
+	}
+	if *target > 1_000_000 {
+		return nil, "", 1, errors.New("Цель должна быть не больше 1 000 000")
+	}
+
+	unit = strings.TrimSpace(unit)
+	if len([]rune(unit)) > maxUnitLen {
+		return nil, "", 1, errors.New("Единица измерения не должна быть длиннее 20 символов")
+	}
+	if step <= 0 {
+		step = 1
+	}
+	if step > 1_000_000 {
+		return nil, "", 1, errors.New("Шаг должен быть не больше 1 000 000")
+	}
+
+	value := *target
+	return &value, unit, step, nil
 }
 
 func normalizeSchedule(schedule models.Schedule) (models.Schedule, error) {

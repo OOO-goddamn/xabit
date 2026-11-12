@@ -139,16 +139,18 @@ func (s *Store) PushReminderCandidates(ctx context.Context) ([]PushReminder, err
 	return reminders, rows.Err()
 }
 
-// CompletionExists reports whether the habit already has any mark (done or
-// skipped) on the given day. Such habits must not trigger a reminder.
-func (s *Store) CompletionExists(ctx context.Context, habitID int64, date string) (bool, error) {
-	var exists bool
+// CompletionSettled reports whether the day is already closed for the habit:
+// either the target was reached (done) or the day was explicitly skipped.
+// Partial progress does not settle the day, so it does not suppress the
+// scheduled reminder.
+func (s *Store) CompletionSettled(ctx context.Context, habitID int64, date string) (bool, error) {
+	var settled bool
 	err := s.pool.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM habit_completions
-			WHERE habit_id = $1 AND date = $2::date
-		)`, habitID, date).Scan(&exists)
-	return exists, err
+			WHERE habit_id = $1 AND date = $2::date AND status IN ('done', 'skipped')
+		)`, habitID, date).Scan(&settled)
+	return settled, err
 }
 
 // ClaimReminderDelivery atomically reserves a (device, habit, day) delivery.

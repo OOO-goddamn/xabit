@@ -106,7 +106,9 @@ export function ReminderScheduler() {
       let changed = false;
 
       for (const habit of dashboard.habits) {
-        if (!habit.reminderTime || habit.completion || habit.due === false) {
+        const settled =
+          habit.completion?.status === "done" || habit.completion?.status === "skipped";
+        if (!habit.reminderTime || settled || habit.due === false) {
           continue;
         }
 
