@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BellRing, FolderPlus, Loader2 } from "lucide-react";
+import { BellRing, FolderPlus, Loader2, Target } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ function HabitDialog({
     [...(habit?.weekdays ?? [])].sort((a, b) => a - b),
   );
   const [monthDay, setMonthDay] = useState(habit?.monthDay ?? 1);
+  const [quantityEnabled, setQuantityEnabled] = useState(Boolean(habit?.targetValue));
   const [targetValue, setTargetValue] = useState(
     habit?.targetValue ? String(habit.targetValue) : "",
   );
@@ -101,8 +102,13 @@ function HabitDialog({
       return;
     }
 
-    const parsedTarget =
-      targetValue.trim() === "" ? null : Math.round(Number(targetValue));
+    const parsedTarget = quantityEnabled
+      ? Math.round(Number(targetValue))
+      : null;
+    if (quantityEnabled && targetValue.trim() === "") {
+      setError("Укажите цель на день или выключите учёт количества");
+      return;
+    }
     if (
       parsedTarget !== null &&
       (!Number.isFinite(parsedTarget) || parsedTarget <= 0 || parsedTarget > 1_000_000)
@@ -291,48 +297,84 @@ function HabitDialog({
             ) : null}
           </Field>
 
-          <Field
-            label="Цель на день"
-            hint="Необязательно — без цели привычка просто «выполнено / пропуск»"
-          >
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                type="number"
-                min={1}
-                inputMode="numeric"
-                value={targetValue}
-                aria-label="Цель на день"
-                placeholder="Например, 60"
-                onChange={(event) => setTargetValue(event.target.value)}
-              />
-              <Input
-                value={unit}
-                maxLength={20}
-                aria-label="Единица измерения"
-                placeholder="мин, раз, км…"
-                onChange={(event) => setUnit(event.target.value)}
-              />
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-line/80 bg-cream/45 px-4 py-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+                <Target size={14} className="text-forest" />
+                Учитывать количество
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                Дневная цель, единица и шаг. Без этого привычка остаётся простой:
+                «выполнено / пропуск».
+              </p>
             </div>
-            {targetValue.trim() !== "" ? (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-[12px] text-muted">Шаг кнопки «+»</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={quantityEnabled}
+              aria-label="Учитывать количество"
+              onClick={() => setQuantityEnabled((current) => !current)}
+              className={cn(
+                "relative h-6 w-11 shrink-0 rounded-full border transition-colors duration-300",
+                quantityEnabled
+                  ? "border-forest-solid bg-forest-solid"
+                  : "border-line bg-cream",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-ivory shadow-sm transition-transform duration-300",
+                  quantityEnabled && "translate-x-5",
+                )}
+              />
+            </button>
+          </div>
+
+          {quantityEnabled ? (
+            <Field
+              label="Цель на день"
+              hint="Количество можно вводить точно или добавлять шагом"
+            >
+              <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   min={1}
                   inputMode="numeric"
-                  value={stepValue}
-                  aria-label="Шаг быстрого добавления"
-                  onChange={(event) => setStepValue(event.target.value)}
-                  className="h-9 w-24"
+                  value={targetValue}
+                  aria-label="Цель на день"
+                  placeholder="Например, 60"
+                  onChange={(event) => setTargetValue(event.target.value)}
                 />
-                <span className="text-[12px] text-muted">{unit.trim() || "за раз"}</span>
+                <Input
+                  value={unit}
+                  maxLength={20}
+                  aria-label="Единица измерения"
+                  placeholder="мин, раз, км…"
+                  onChange={(event) => setUnit(event.target.value)}
+                />
               </div>
-            ) : null}
-            <p className="mt-2 text-[11px] leading-relaxed text-muted">
-              Количество можно вводить точно или добавлять шагом. Любое значение больше нуля
-              сохранит прогресс дня, а серия и выполняемость вырастут только при достижении цели.
-            </p>
-          </Field>
+              {targetValue.trim() !== "" ? (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-[12px] text-muted">Шаг кнопки «+»</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={stepValue}
+                    aria-label="Шаг быстрого добавления"
+                    onChange={(event) => setStepValue(event.target.value)}
+                    className="h-9 w-24"
+                  />
+                  <span className="text-[12px] text-muted">{unit.trim() || "за раз"}</span>
+                </div>
+              ) : null}
+              <p className="mt-2 text-[11px] leading-relaxed text-muted">
+                Любое значение больше нуля сохранит прогресс дня, но серия и выполняемость
+                вырастут только при достижении цели.
+              </p>
+            </Field>
+          ) : null}
 
           <Field label="Напоминание" htmlFor="habit-reminder" hint="Только в запланированные дни">
             <div className="flex items-center gap-3">
