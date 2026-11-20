@@ -271,6 +271,25 @@ curl https://api.example.com/api/health
 docker compose --profile tls logs -f caddy
 ```
 
+### Резервные копии PostgreSQL
+
+На сервере дампы хранятся отдельно от git checkout в `/var/backups/xabit` с правами только для root. Скрипт `ops/xabit-db-backup.sh` создаёт custom-дамп через `pg_dump`, проверяет архив через `pg_restore --list`, сохраняет его атомарно и удаляет дампы старше 30 дней. Cron-файл `ops/xabit-db-backup.cron` запускает резервирование ежедневно в 03:15 UTC. Результат и ошибки записываются в `/var/log/xabit-db-backup.log`.
+
+Проверить последние запуски и список копий:
+
+```bash
+tail -n 20 /var/log/xabit-db-backup.log
+ls -lh /var/backups/xabit
+```
+
+Посмотреть содержимое дампа (путь в `docker cp` — имя нужного файла из `/var/backups/xabit`):
+
+```bash
+docker cp /var/backups/xabit/<имя-файла>.dump habit-db:/tmp/backup-check.dump
+docker compose exec -T db pg_restore --list /tmp/backup-check.dump
+docker compose exec -T db rm -f /tmp/backup-check.dump
+```
+
 ## Структура
 
 ```
@@ -295,6 +314,7 @@ habit/
 │       └── lib/                  # API-клиент, типы, работа с датами
 ├── .github/workflows/            # CI: деплой фронтенда на GitHub Pages
 ├── Caddyfile                     # HTTPS-прокси для API (профиль tls)
+├── ops/                          # серверное резервное копирование PostgreSQL
 ├── docker-compose.yml            # PostgreSQL, бэкенд и Caddy (фронтенд закомментирован)
 └── README.md
 ```

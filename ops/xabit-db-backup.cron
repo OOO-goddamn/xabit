@@ -1,0 +1,5 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Daily at 03:15 UTC (the server timezone is Etc/UTC).
+15 3 * * * root /usr/local/sbin/xabit-db-backup >> /var/log/xabit-db-backup.log 2>&1
