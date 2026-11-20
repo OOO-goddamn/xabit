@@ -22,11 +22,13 @@ func NewRouter(handler *Handler, corsOrigins []string) http.Handler {
 
 	mux.HandleFunc("GET /api/categories", handler.listCategories)
 	mux.HandleFunc("POST /api/categories", handler.createCategory)
+	mux.HandleFunc("PUT /api/categories/order", handler.reorderCategories)
 	mux.HandleFunc("PATCH /api/categories/{id}", handler.updateCategory)
 	mux.HandleFunc("DELETE /api/categories/{id}", handler.deleteCategory)
 
 	mux.HandleFunc("GET /api/habits", handler.listHabits)
 	mux.HandleFunc("POST /api/habits", handler.createHabit)
+	mux.HandleFunc("PUT /api/habits/order", handler.reorderHabits)
 	mux.HandleFunc("GET /api/habits/{id}", handler.getHabit)
 	mux.HandleFunc("PATCH /api/habits/{id}", handler.updateHabit)
 	mux.HandleFunc("DELETE /api/habits/{id}", handler.deleteHabit)

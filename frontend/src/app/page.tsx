@@ -19,8 +19,10 @@ import {
 } from "lucide-react";
 
 import { CompletionModal } from "@/components/completion-modal";
+import { CategoryIcon } from "@/components/category-appearance";
 import { HabitFormModal } from "@/components/habit-form-modal";
 import { HabitRow } from "@/components/habit-row";
+import { SortControls } from "@/components/sort-controls";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/empty-state";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -35,14 +37,12 @@ import type {
 } from "@/lib/types";
 import {
   addDaysISO,
-  cn,
   daysWord,
   errorMessage,
   formatLongDate,
   formatShortDate,
   habitsWord,
   percent,
-  toneFor,
   weekdayLabel,
 } from "@/lib/utils";
 
@@ -90,6 +90,7 @@ export default function DashboardPage() {
   const [noteHabit, setNoteHabit] = useState<DashboardHabit | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const [sorting, setSorting] = useState(false);
 
   const date = selectedDate ?? today;
 
@@ -97,7 +98,7 @@ export default function DashboardPage() {
   const { data, error, mutate } = useSWR<DashboardResponse>(
     date ? `/api/dashboard?date=${date}` : null,
   );
-  const { data: categories } = useSWR<Category[]>("/api/categories");
+  const { data: categories, mutate: mutateCategories } = useSWR<Category[]>("/api/categories");
 
   async function setStatus(habit: DashboardHabit, status: CompletionStatus | null) {
     if (!date) {
@@ -206,14 +207,82 @@ export default function DashboardPage() {
   const copy = heroCopy(stats, data.habits.length);
   const dayProgress = stats.total > 0 ? (stats.done / stats.total) * 100 : 0;
 
-  const groups: Array<{ id: number; name: string; habits: DashboardHabit[] }> = [];
+  const groups: Array<{
+    id: number;
+    name: string;
+    icon: DashboardHabit["categoryIcon"];
+    color: string;
+    habits: DashboardHabit[];
+  }> = [];
   for (const habit of data.habits) {
     let group = groups.find((item) => item.id === habit.categoryId);
     if (!group) {
-      group = { id: habit.categoryId, name: habit.categoryName, habits: [] };
+      group = {
+        id: habit.categoryId,
+        name: habit.categoryName,
+        icon: habit.categoryIcon,
+        color: habit.categoryColor,
+        habits: [],
+      };
       groups.push(group);
     }
     group.habits.push(habit);
+  }
+
+  async function moveCategory(index: number, direction: -1 | 1) {
+    if (!categories) {
+      return;
+    }
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= groups.length) {
+      return;
+    }
+
+    const reorderedGroups = [...groups];
+    [reorderedGroups[index], reorderedGroups[targetIndex]] = [
+      reorderedGroups[targetIndex],
+      reorderedGroups[index],
+    ];
+    const visibleCategoryIDs = new Set(groups.map((group) => group.id));
+    let visibleIndex = 0;
+    const ids = categories.map((category) =>
+      visibleCategoryIDs.has(category.id) ? reorderedGroups[visibleIndex++].id : category.id,
+    );
+
+    setSorting(true);
+    try {
+      await api.reorderCategories(ids);
+      await Promise.all([mutate(), mutateCategories()]);
+    } catch (requestError) {
+      toast(errorMessage(requestError), "error");
+    } finally {
+      setSorting(false);
+    }
+  }
+
+  async function moveHabit(categoryID: number, habitID: number, direction: -1 | 1) {
+    const group = groups.find((item) => item.id === categoryID);
+    if (!group) {
+      return;
+    }
+    const index = group.habits.findIndex((habit) => habit.id === habitID);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= group.habits.length) {
+      return;
+    }
+
+    const ids = group.habits.map((habit) => habit.id);
+    [ids[index], ids[targetIndex]] = [ids[targetIndex], ids[index]];
+
+    setSorting(true);
+    try {
+      await api.reorderHabits(categoryID, ids);
+      await mutate();
+    } catch (requestError) {
+      toast(errorMessage(requestError), "error");
+    } finally {
+      setSorting(false);
+    }
   }
 
   return (
@@ -367,7 +436,6 @@ export default function DashboardPage() {
       ) : (
         <div className="space-y-7">
           {groups.map((group, groupIndex) => {
-            const tone = toneFor(group.id);
             const planned = group.habits.filter((habit) => habit.due !== false);
             const doneCount = planned.filter(
               (habit) => habit.completion?.status === "done",
@@ -379,20 +447,37 @@ export default function DashboardPage() {
                 className="space-y-3 animate-fade-up"
                 style={{ animationDelay: `${groupIndex * 55}ms` }}
               >
-                <div className="flex items-center justify-between gap-4 px-1">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", tone.dot)} />
+                  <div className="flex items-center justify-between gap-4 px-1">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-xl"
+                      style={{ color: group.color, backgroundColor: `${group.color}1A` }}
+                    >
+                      <CategoryIcon name={group.icon} size={17} />
+                    </span>
                     <h2 className="truncate font-display text-2xl leading-none text-ink">
                       {group.name}
                     </h2>
                   </div>
-                  <span className="shrink-0 rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-muted">
-                    {planned.length > 0 ? `${doneCount}/${planned.length}` : "отдых"}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {groups.length > 1 ? (
+                      <SortControls
+                        label={`категорию «${group.name}»`}
+                        canMoveUp={groupIndex > 0}
+                        canMoveDown={groupIndex < groups.length - 1}
+                        disabled={sorting || !categories}
+                        onMoveUp={() => void moveCategory(groupIndex, -1)}
+                        onMoveDown={() => void moveCategory(groupIndex, 1)}
+                      />
+                    ) : null}
+                    <span className="rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-muted">
+                      {planned.length > 0 ? `${doneCount}/${planned.length}` : "отдых"}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-2.5">
-                  {group.habits.map((habit) => (
+                  {group.habits.map((habit, habitIndex) => (
                     <HabitRow
                       key={habit.id}
                       habit={habit}
@@ -402,6 +487,17 @@ export default function DashboardPage() {
                       onSetStatus={setStatus}
                       onSetProgress={setProgress}
                       onOpenNote={openNote}
+                      sortControls={
+                        group.habits.length > 1
+                          ? {
+                              canMoveUp: habitIndex > 0,
+                              canMoveDown: habitIndex < group.habits.length - 1,
+                              disabled: sorting,
+                              onMoveUp: () => void moveHabit(group.id, habit.id, -1),
+                              onMoveDown: () => void moveHabit(group.id, habit.id, 1),
+                            }
+                          : undefined
+                      }
                     />
                   ))}
                 </div>

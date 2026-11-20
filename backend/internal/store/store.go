@@ -21,6 +21,7 @@ var (
 	ErrCategoryInUse    = errors.New("category in use")
 	ErrCategoryNotFound = errors.New("category not found")
 	ErrHabitNotFound    = errors.New("habit not found")
+	ErrInvalidOrder     = errors.New("invalid item order")
 )
 
 type Store struct {
@@ -146,12 +147,12 @@ func (s *Store) ListFeedback(ctx context.Context, limit int) ([]Feedback, error)
 
 func (s *Store) ListCategories(ctx context.Context, userID int64) ([]models.Category, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT c.id, c.name, COUNT(h.id)::int
+		SELECT c.id, c.name, c.icon, c.color, COUNT(h.id)::int
 		FROM categories c
 		LEFT JOIN habits h ON h.category_id = c.id AND h.user_id = c.user_id
 		WHERE c.user_id = $1
-		GROUP BY c.id, c.name
-		ORDER BY lower(c.name)`, userID)
+		GROUP BY c.id, c.name, c.icon, c.color
+		ORDER BY c.sort_order, lower(c.name)`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +161,7 @@ func (s *Store) ListCategories(ctx context.Context, userID int64) ([]models.Cate
 	categories := make([]models.Category, 0)
 	for rows.Next() {
 		var category models.Category
-		if err := rows.Scan(&category.ID, &category.Name, &category.HabitCount); err != nil {
+		if err := rows.Scan(&category.ID, &category.Name, &category.Icon, &category.Color, &category.HabitCount); err != nil {
 			return nil, err
 		}
 		categories = append(categories, category)
@@ -169,24 +170,57 @@ func (s *Store) ListCategories(ctx context.Context, userID int64) ([]models.Cate
 	return categories, rows.Err()
 }
 
-func (s *Store) CreateCategory(ctx context.Context, userID int64, name string) (models.Category, error) {
+func (s *Store) CreateCategory(ctx context.Context, userID int64, name, icon, color string) (models.Category, error) {
 	category := models.Category{}
 	err := s.pool.QueryRow(ctx,
-		`INSERT INTO categories (user_id, name) VALUES ($1, $2) RETURNING id, name`,
-		userID, name,
-	).Scan(&category.ID, &category.Name)
+		`INSERT INTO categories (user_id, name, icon, color, sort_order)
+		 SELECT $1, $2, $3, $4, COALESCE(MAX(sort_order) + 1, 0)
+		 FROM categories WHERE user_id = $1
+		 RETURNING id, name, icon, color`,
+		userID, name, icon, color,
+	).Scan(&category.ID, &category.Name, &category.Icon, &category.Color)
 	if isPgCode(err, "23505") {
 		return category, ErrConflict
 	}
 	return category, err
 }
 
-func (s *Store) UpdateCategory(ctx context.Context, userID, id int64, name string) (models.Category, error) {
+func (s *Store) ReorderCategories(ctx context.Context, userID int64, ids []int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var count int
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*)::int FROM categories WHERE user_id = $1`, userID).Scan(&count); err != nil {
+		return err
+	}
+	if count != len(ids) {
+		return ErrInvalidOrder
+	}
+
+	for position, id := range ids {
+		tag, err := tx.Exec(ctx, `UPDATE categories SET sort_order = $3 WHERE id = $1 AND user_id = $2`, id, userID, position)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return ErrInvalidOrder
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *Store) UpdateCategory(ctx context.Context, userID, id int64, name, icon, color string) (models.Category, error) {
 	category := models.Category{ID: id, Name: name}
 	err := s.pool.QueryRow(ctx,
-		`UPDATE categories SET name = $3 WHERE id = $1 AND user_id = $2 RETURNING id, name`,
-		id, userID, name,
-	).Scan(&category.ID, &category.Name)
+		`UPDATE categories
+		 SET name = $3, icon = COALESCE(NULLIF($4, ''), icon), color = COALESCE(NULLIF($5, ''), color)
+		 WHERE id = $1 AND user_id = $2
+		 RETURNING id, name, icon, color`,
+		id, userID, name, icon, color,
+	).Scan(&category.ID, &category.Name, &category.Icon, &category.Color)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return category, ErrNotFound
 	}
@@ -223,7 +257,7 @@ func (s *Store) DeleteCategory(ctx context.Context, userID, id int64) error {
 // -------------------------------------------------------------------- habits
 
 const habitSelect = `
-	SELECT h.id, h.name, h.description, h.category_id, c.name, h.created_at,
+	SELECT h.id, h.name, h.description, h.category_id, c.name, c.icon, c.color, h.created_at,
 	       COALESCE(to_char(h.reminder_time, 'HH24:MI'), ''),
 	       h.repeat_type, h.weekdays, COALESCE(h.month_day, 0),
 	       COALESCE(h.target_value, 0), h.unit, COALESCE(h.step_value, 1)
@@ -238,7 +272,7 @@ func (s *Store) ListHabits(ctx context.Context, userID int64, categoryID *int64)
 		args = append(args, *categoryID)
 		query += fmt.Sprintf(` AND h.category_id = $%d`, len(args))
 	}
-	query += ` ORDER BY lower(c.name), lower(h.name)`
+	query += ` ORDER BY c.sort_order, h.sort_order, lower(c.name), lower(h.name)`
 
 	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
@@ -270,8 +304,9 @@ func (s *Store) GetHabit(ctx context.Context, userID, id int64) (models.Habit, e
 func (s *Store) CreateHabit(ctx context.Context, userID int64, name, description string, categoryID int64, reminderTime string, schedule models.Schedule, targetValue *int, unit string, stepValue int) (models.Habit, error) {
 	var id int64
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO habits (user_id, name, description, category_id, reminder_time, repeat_type, weekdays, month_day, target_value, unit, step_value)
-		SELECT $1, $2, $3, c.id, NULLIF($5, '')::time, $6, $7, $8, $9, $10, $11
+		INSERT INTO habits (user_id, name, description, category_id, reminder_time, repeat_type, weekdays, month_day, target_value, unit, step_value, sort_order)
+		SELECT $1, $2, $3, c.id, NULLIF($5, '')::time, $6, $7, $8, $9, $10, $11,
+		       COALESCE((SELECT MAX(existing.sort_order) + 1 FROM habits existing WHERE existing.user_id = $1 AND existing.category_id = c.id), 0)
 		FROM categories c
 		WHERE c.id = $4 AND c.user_id = $1
 		RETURNING id`,
@@ -302,7 +337,11 @@ func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, descrip
 
 	tag, err := s.pool.Exec(ctx,
 		`UPDATE habits
-		 SET name = $3, description = $4, category_id = $5, reminder_time = NULLIF($6, '')::time,
+		 SET name = $3, description = $4,
+		     sort_order = CASE WHEN category_id <> $5 THEN
+		         COALESCE((SELECT MAX(existing.sort_order) + 1 FROM habits existing WHERE existing.user_id = $2 AND existing.category_id = $5), 0)
+		     ELSE sort_order END,
+		     category_id = $5, reminder_time = NULLIF($6, '')::time,
 		     repeat_type = $7, weekdays = $8, month_day = $9,
 		     target_value = $10, unit = $11, step_value = $12
 		 WHERE id = $1 AND user_id = $2`,
@@ -332,6 +371,38 @@ func (s *Store) UpdateHabit(ctx context.Context, userID, id int64, name, descrip
 	return s.GetHabit(ctx, userID, id)
 }
 
+func (s *Store) ReorderHabits(ctx context.Context, userID, categoryID int64, ids []int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var count int
+	if err := tx.QueryRow(ctx,
+		`SELECT COUNT(*)::int FROM habits WHERE user_id = $1 AND category_id = $2`, userID, categoryID,
+	).Scan(&count); err != nil {
+		return err
+	}
+	if count != len(ids) {
+		return ErrInvalidOrder
+	}
+
+	for position, id := range ids {
+		tag, err := tx.Exec(ctx,
+			`UPDATE habits SET sort_order = $4 WHERE id = $1 AND user_id = $2 AND category_id = $3`,
+			id, userID, categoryID, position,
+		)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return ErrInvalidOrder
+		}
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Store) DeleteHabit(ctx context.Context, userID, id int64) error {
 	tag, err := s.pool.Exec(ctx, `DELETE FROM habits WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
@@ -359,6 +430,8 @@ func scanHabit(row habitRow) (models.Habit, error) {
 		&habit.Description,
 		&habit.CategoryID,
 		&habit.CategoryName,
+		&habit.CategoryIcon,
+		&habit.CategoryColor,
 		&habit.CreatedAt,
 		&habit.ReminderTime,
 		&habit.Schedule.Repeat,

@@ -38,6 +38,8 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "Категория не найдена")
 	case errors.Is(err, store.ErrHabitNotFound):
 		writeError(w, http.StatusBadRequest, "Привычка не найдена")
+	case errors.Is(err, store.ErrInvalidOrder):
+		writeError(w, http.StatusBadRequest, "Порядок списка изменился. Обновите страницу")
 	default:
 		slog.Error("request failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "Внутренняя ошибка сервера")

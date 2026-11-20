@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { Button, buttonStyles } from "@/components/ui/button";
+import { CategoryIcon } from "@/components/category-appearance";
 import { EmptyState, Skeleton } from "@/components/ui/empty-state";
 import type { StatsHabit, StatsResponse } from "@/lib/types";
 import {
@@ -255,8 +256,12 @@ export default function StatsPage() {
                   >
                     <div className="w-40 shrink-0">
                       <p className="truncate text-[13px] font-semibold text-ink">{habit.name}</p>
-                      <p className="truncate text-[10px] uppercase tracking-wide text-muted">
-                        {habit.categoryName}
+                      <p
+                        className="mt-0.5 flex items-center gap-1 truncate text-[10px] uppercase tracking-wide"
+                        style={{ color: habit.categoryColor }}
+                      >
+                        <CategoryIcon name={habit.categoryIcon} size={11} />
+                        <span className="truncate">{habit.categoryName}</span>
                       </p>
                     </div>
 

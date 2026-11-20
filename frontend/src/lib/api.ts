@@ -1,5 +1,6 @@
 import type {
   AuthResponse,
+  CategoryIconName,
   CompletionInput,
   FeedbackInput,
   FeedbackItem,
@@ -121,11 +122,14 @@ export const api = {
 
   me: () => fetcher<User>("/api/auth/me"),
 
-  createCategory: (name: string) =>
-    request<{ id: number; name: string }>("/api/categories", "POST", { name }),
+  createCategory: (input: { name: string; icon: CategoryIconName; color: string }) =>
+    request<{ id: number; name: string; icon: string; color: string }>("/api/categories", "POST", input),
 
-  updateCategory: (id: number, name: string) =>
-    request<{ id: number; name: string }>(`/api/categories/${id}`, "PATCH", { name }),
+  reorderCategories: (ids: number[]) =>
+    request<void>("/api/categories/order", "PUT", { ids }),
+
+  updateCategory: (id: number, input: { name: string; icon: CategoryIconName; color: string }) =>
+    request<{ id: number; name: string; icon: string; color: string }>(`/api/categories/${id}`, "PATCH", input),
 
   deleteCategory: (id: number) => request<void>(`/api/categories/${id}`, "DELETE"),
 
@@ -134,6 +138,9 @@ export const api = {
 
   updateHabit: (id: number, input: HabitInput) =>
     request<{ id: number }>(`/api/habits/${id}`, "PATCH", input),
+
+  reorderHabits: (categoryId: number, ids: number[]) =>
+    request<void>("/api/habits/order", "PUT", { categoryId, ids }),
 
   deleteHabit: (id: number) => request<void>(`/api/habits/${id}`, "DELETE"),
 

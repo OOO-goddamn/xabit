@@ -9,10 +9,10 @@ import {
   FolderOpen,
   Pencil,
   Plus,
-  Tag,
   Trash2,
 } from "lucide-react";
 
+import { CategoryIcon } from "@/components/category-appearance";
 import { CategoryFormModal } from "@/components/category-form-modal";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -21,7 +21,7 @@ import { useToast } from "@/components/ui/toast";
 import { useRevalidateApi } from "@/hooks/use-revalidate-api";
 import { api } from "@/lib/api";
 import type { Category } from "@/lib/types";
-import { cn, errorMessage, habitsWord, pluralRu, toneFor } from "@/lib/utils";
+import { errorMessage, habitsWord, pluralRu } from "@/lib/utils";
 
 export default function CategoriesPage() {
   const [formOpen, setFormOpen] = useState(false);
@@ -109,32 +109,30 @@ export default function CategoriesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {categories.map((category, index) => {
-            const tone = toneFor(category.id);
-
             return (
               <article
                 key={category.id}
                 className="group relative flex flex-col overflow-hidden rounded-[26px] border border-line bg-surface p-5 pt-6 shadow-[0_1px_0_rgba(23,51,42,0.02)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card animate-fade-up"
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
-                <span className={cn("absolute inset-x-0 top-0 h-1.5", tone.bar)} />
+                <span
+                  className="absolute inset-x-0 top-0 h-1.5"
+                  style={{ backgroundColor: category.color }}
+                />
 
                 <div className="flex items-start justify-between gap-3">
                   <span
-                    className={cn(
-                      "grid h-11 w-11 place-items-center rounded-2xl",
-                      tone.soft,
-                      tone.text,
-                    )}
+                    className="grid h-11 w-11 place-items-center rounded-2xl"
+                    style={{ color: category.color, backgroundColor: `${category.color}1A` }}
                   >
-                    <Tag size={19} />
+                    <CategoryIcon name={category.icon} size={20} />
                   </span>
 
                   <div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
                     <button
                       type="button"
                       onClick={() => openEdit(category)}
-                      aria-label={`Переименовать категорию «${category.name}»`}
+                      aria-label={`Изменить категорию «${category.name}»`}
                       className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink"
                     >
                       <Pencil size={14} />

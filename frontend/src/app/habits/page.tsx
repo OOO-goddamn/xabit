@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CategoryIcon, categoryContrastText } from "@/components/category-appearance";
 import { HabitFormModal } from "@/components/habit-form-modal";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/empty-state";
@@ -31,19 +32,20 @@ import {
   cn,
   errorMessage,
   habitsWord,
-  toneFor,
 } from "@/lib/utils";
 
 function FilterChip({
   active,
   onClick,
   children,
-  dot,
+  icon,
+  color,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
-  dot?: string;
+  icon?: Category["icon"];
+  color?: string;
 }) {
   return (
     <button
@@ -53,11 +55,24 @@ function FilterChip({
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-semibold transition-all",
         active
-          ? "border-forest-solid bg-forest-solid text-ivory shadow-sm"
+          ? color
+            ? "shadow-sm"
+            : "border-forest-solid bg-forest-solid text-ivory shadow-sm"
           : "border-line bg-surface text-muted hover:border-forest/30 hover:text-ink",
       )}
+      style={
+        active && color
+          ? { backgroundColor: color, borderColor: color, color: categoryContrastText(color) }
+          : undefined
+      }
     >
-      {dot ? <span className={cn("h-1.5 w-1.5 rounded-full", dot)} /> : null}
+      {icon ? (
+        <CategoryIcon
+          name={icon}
+          size={14}
+          style={{ color: active && color ? categoryContrastText(color) : color }}
+        />
+      ) : null}
       {children}
     </button>
   );
@@ -166,13 +181,13 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
             Все <span className="opacity-60">{total}</span>
           </FilterChip>
           {categories?.map((category) => {
-            const tone = toneFor(category.id);
             return (
               <FilterChip
                 key={category.id}
                 active={filter === category.id}
                 onClick={() => setFilter(filter === category.id ? null : category.id)}
-                dot={filter === category.id ? "bg-ivory" : tone.dot}
+                icon={category.icon}
+                color={category.color}
               >
                 {category.name} <span className="opacity-60">{category.habitCount}</span>
               </FilterChip>
@@ -230,7 +245,6 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((habit, index) => {
-            const tone = toneFor(habit.categoryId);
             const status = habit.completion?.status;
             const due = habit.due !== false;
             const target = habit.targetValue ?? 0;
@@ -245,13 +259,10 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold",
-                      tone.soft,
-                      tone.text,
-                    )}
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold"
+                    style={{ color: habit.categoryColor, backgroundColor: `${habit.categoryColor}1A` }}
                   >
-                    <span className={cn("h-1.5 w-1.5 rounded-full", tone.dot)} />
+                    <CategoryIcon name={habit.categoryIcon} size={12} />
                     {habit.categoryName}
                   </span>
 

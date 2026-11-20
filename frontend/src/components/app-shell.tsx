@@ -19,9 +19,10 @@ import {
 } from "lucide-react";
 
 import type { Category } from "@/lib/types";
-import { cn, normalizePathname, toneFor } from "@/lib/utils";
+import { cn, normalizePathname } from "@/lib/utils";
 
 import { useAuth } from "./auth-provider";
+import { CategoryIcon } from "./category-appearance";
 import { PushToggle } from "./push-toggle";
 import { FeedbackModal } from "./feedback-modal";
 import { ThemeToggle } from "./theme-toggle";
@@ -148,7 +149,7 @@ function SidebarContent({
         </div>
       </div>
 
-      <div className="mt-9 min-h-0 flex-1">
+      <div className="mt-9 min-h-0 flex-1 overflow-y-auto">
         <div className="flex items-center justify-between px-3">
           <p className="eyebrow">Категории</p>
           <Link
@@ -172,7 +173,6 @@ function SidebarContent({
             : null}
 
           {categories?.map((category) => {
-            const tone = toneFor(category.id);
             return (
               <Link
                 key={category.id}
@@ -181,7 +181,7 @@ function SidebarContent({
                 className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-[13px] text-muted transition hover:bg-ink/5 hover:text-ink"
               >
                 <span className="flex min-w-0 items-center gap-2.5">
-                  <span className={cn("h-2 w-2 shrink-0 rounded-full", tone.dot)} />
+                  <CategoryIcon name={category.icon} size={15} className="shrink-0" style={{ color: category.color }} />
                   <span className="truncate">{category.name}</span>
                 </span>
                 <span className="rounded-full bg-ink/5 px-1.5 py-0.5 text-[10px] font-semibold text-muted">
@@ -209,7 +209,7 @@ function SidebarContent({
         </div>
       </div>
 
-      <div className="relative mt-6 overflow-hidden rounded-[26px] bg-gradient-to-br from-forest-solid to-forest-deep p-5 text-ivory">
+      <div className="relative mt-6 hidden overflow-hidden rounded-[26px] bg-gradient-to-br from-forest-solid to-forest-deep p-5 text-ivory lg:block">
         <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full border border-ivory/10" />
         <div className="pointer-events-none absolute -bottom-12 -left-6 h-24 w-24 rounded-full bg-ivory/5" />
         <Sparkles size={17} className="relative text-gold" />

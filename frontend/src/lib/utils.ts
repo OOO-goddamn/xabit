@@ -114,64 +114,6 @@ export function percent(value: number) {
   return `${Math.round(value)}%`;
 }
 
-export interface CategoryTone {
-  dot: string;
-  soft: string;
-  text: string;
-  bar: string;
-  hex: string;
-}
-
-const tones: CategoryTone[] = [
-  {
-    dot: "bg-forest",
-    soft: "bg-forest-soft",
-    text: "text-forest",
-    bar: "bg-forest",
-    hex: "#1d5c48",
-  },
-  {
-    dot: "bg-clay",
-    soft: "bg-clay-soft",
-    text: "text-clay-ink",
-    bar: "bg-clay",
-    hex: "#bf6a44",
-  },
-  {
-    dot: "bg-gold",
-    soft: "bg-gold-soft",
-    text: "text-gold-ink",
-    bar: "bg-gold",
-    hex: "#c49a4a",
-  },
-  {
-    dot: "bg-slate",
-    soft: "bg-slate-soft",
-    text: "text-slate-ink",
-    bar: "bg-slate",
-    hex: "#6c7f9e",
-  },
-  {
-    dot: "bg-plum",
-    soft: "bg-plum-soft",
-    text: "text-plum-ink",
-    bar: "bg-plum",
-    hex: "#a06b8a",
-  },
-];
-
-export function toneFor(categoryId: number): CategoryTone {
-  return tones[Math.abs(categoryId) % tones.length];
-}
-
-export function toneForName(name: string): CategoryTone {
-  let hash = 0;
-  for (let index = 0; index < name.length; index += 1) {
-    hash = (hash * 31 + name.charCodeAt(index)) % 997;
-  }
-  return tones[hash % tones.length];
-}
-
 export function errorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;

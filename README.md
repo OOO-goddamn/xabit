@@ -323,8 +323,11 @@ habit/
 
 ```sql
 categories (
-    id   BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    id         BIGSERIAL PRIMARY KEY,
+    name       TEXT NOT NULL UNIQUE,
+    icon       TEXT NOT NULL DEFAULT 'tag',
+    color      TEXT NOT NULL DEFAULT '#1d5c48',
+    sort_order INT NOT NULL DEFAULT 0
 )
 
 habits (
@@ -340,6 +343,7 @@ habits (
     target_value  INT CHECK (target_value > 0),
     unit          TEXT NOT NULL DEFAULT '',
     step_value    INT NOT NULL DEFAULT 1 CHECK (step_value > 0),
+    sort_order    INT NOT NULL DEFAULT 0,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 )
 
@@ -400,11 +404,13 @@ feedback (
 | `GET`    | `/api/feedback/access`        | Проверить, доступен ли текущему аккаунту inbox отзывов |
 | `GET`    | `/api/feedback`               | Последние 100 отзывов (только для `FEEDBACK_ADMIN_EMAIL`) |
 | `GET`    | `/api/categories`             | Категории с количеством привычек |
-| `POST`   | `/api/categories`             | Создать категорию `{ "name": "..." }` |
-| `PATCH`  | `/api/categories/{id}`        | Переименовать категорию |
+| `POST`   | `/api/categories`             | Создать категорию `{ "name": "...", "icon": "leaf", "color": "#1d5c48" }` |
+| `PUT`    | `/api/categories/order`       | Сохранить порядок категорий `{ "ids": [2, 1] }` |
+| `PATCH`  | `/api/categories/{id}`        | Изменить имя, иконку и цвет категории |
 | `DELETE` | `/api/categories/{id}`        | Удалить пустую категорию |
 | `GET`    | `/api/habits?categoryId=1`    | Привычки, опционально по категории |
 | `POST`   | `/api/habits`                 | Создать привычку `{ name, description, categoryId, reminderTime, targetValue, unit, stepValue, repeat, weekdays, monthDay }` |
+| `PUT`    | `/api/habits/order`           | Сохранить порядок привычек в категории `{ "categoryId": 1, "ids": [3, 2] }` |
 | `GET`    | `/api/habits/{id}`            | Одна привычка |
 | `PATCH`  | `/api/habits/{id}`            | Обновить привычку (`reminderTime` — `"HH:MM"` или `""`; `targetValue` — число или `null`) |
 | `DELETE` | `/api/habits/{id}`            | Удалить привычку и её историю |
@@ -424,9 +430,9 @@ feedback (
 
 ## Страницы
 
-- **Сегодня** — прогресс дня, привычки по категориям, недельная сетка, серии, заметки; можно листать дни назад.
+- **Сегодня** — прогресс дня, привычки по категориям, недельная сетка, серии, заметки; можно листать дни назад и менять порядок категорий и привычек кнопками вверх/вниз. Порядок сохраняется для аккаунта.
 - **Привычки** — карточки всех привычек, фильтр по категориям и поиск, создание, редактирование и удаление.
-- **Категории** — управление категориями и переход к привычкам категории.
+- **Категории** — управление категориями, настройка иконки и цвета, переход к привычкам.
 - **Статистика** — выполнение за 7/30/90 дней, тепловая карта по каждой привычке, сильные и слабые места.
 - **Обратная связь** — отправка идеи, сообщения об ошибке или другого отзыва из бокового меню.
 

@@ -11,6 +11,8 @@ const (
 type Category struct {
 	ID         int64  `json:"id"`
 	Name       string `json:"name"`
+	Icon       string `json:"icon"`
+	Color      string `json:"color"`
 	HabitCount int    `json:"habitCount"`
 }
 
@@ -23,16 +25,18 @@ type User struct {
 }
 
 type Habit struct {
-	ID           int64     `json:"id"`
-	Name         string    `json:"name"`
-	Description  string    `json:"description"`
-	CategoryID   int64     `json:"categoryId"`
-	CategoryName string    `json:"categoryName"`
-	ReminderTime string    `json:"reminderTime"`
-	TargetValue  *int      `json:"targetValue"`
-	Unit         string    `json:"unit"`
-	StepValue    int       `json:"stepValue"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID            int64     `json:"id"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	CategoryID    int64     `json:"categoryId"`
+	CategoryName  string    `json:"categoryName"`
+	CategoryIcon  string    `json:"categoryIcon"`
+	CategoryColor string    `json:"categoryColor"`
+	ReminderTime  string    `json:"reminderTime"`
+	TargetValue   *int      `json:"targetValue"`
+	Unit          string    `json:"unit"`
+	StepValue     int       `json:"stepValue"`
+	CreatedAt     time.Time `json:"createdAt"`
 	Schedule
 }
 

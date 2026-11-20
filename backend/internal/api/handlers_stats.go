@@ -25,17 +25,19 @@ type statsDay struct {
 }
 
 type statsHabit struct {
-	ID           int64              `json:"id"`
-	Name         string             `json:"name"`
-	CategoryName string             `json:"categoryName"`
-	TargetValue  *int               `json:"targetValue"`
-	Unit         string             `json:"unit"`
-	StepValue    int                `json:"stepValue"`
-	Done         int                `json:"done"`
-	Skipped      int                `json:"skipped"`
-	Rate         float64            `json:"rate"`
-	Streak       int                `json:"streak"`
-	History      []models.DayStatus `json:"history"`
+	ID            int64              `json:"id"`
+	Name          string             `json:"name"`
+	CategoryName  string             `json:"categoryName"`
+	CategoryIcon  string             `json:"categoryIcon"`
+	CategoryColor string             `json:"categoryColor"`
+	TargetValue   *int               `json:"targetValue"`
+	Unit          string             `json:"unit"`
+	StepValue     int                `json:"stepValue"`
+	Done          int                `json:"done"`
+	Skipped       int                `json:"skipped"`
+	Rate          float64            `json:"rate"`
+	Streak        int                `json:"streak"`
+	History       []models.DayStatus `json:"history"`
 }
 
 type statsResponse struct {
@@ -110,14 +112,16 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 	for _, habit := range habits {
 		doneSet := dateSet(doneDates[habit.ID])
 		item := statsHabit{
-			ID:           habit.ID,
-			Name:         habit.Name,
-			CategoryName: habit.CategoryName,
-			TargetValue:  habit.TargetValue,
-			Unit:         habit.Unit,
-			StepValue:    habit.StepValue,
-			History:      make([]models.DayStatus, 0, days),
-			Streak:       streakOn(doneSet, to, habit.Schedule),
+			ID:            habit.ID,
+			Name:          habit.Name,
+			CategoryName:  habit.CategoryName,
+			CategoryIcon:  habit.CategoryIcon,
+			CategoryColor: habit.CategoryColor,
+			TargetValue:   habit.TargetValue,
+			Unit:          habit.Unit,
+			StepValue:     habit.StepValue,
+			History:       make([]models.DayStatus, 0, days),
+			Streak:        streakOn(doneSet, to, habit.Schedule),
 		}
 
 		habitCompletions := completionByHabit[habit.ID]

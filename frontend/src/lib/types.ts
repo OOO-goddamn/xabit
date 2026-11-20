@@ -17,8 +17,28 @@ export interface AuthResponse {
 export interface Category {
   id: number;
   name: string;
+  icon: CategoryIconName;
+  color: string;
   habitCount: number;
 }
+
+export type CategoryIconName =
+  | "tag"
+  | "heart"
+  | "activity"
+  | "book"
+  | "briefcase"
+  | "dumbbell"
+  | "apple"
+  | "brain"
+  | "home"
+  | "wallet"
+  | "sparkles"
+  | "sun"
+  | "leaf"
+  | "education"
+  | "target"
+  | "coffee";
 
 export interface Habit {
   id: number;
@@ -26,6 +46,8 @@ export interface Habit {
   description: string;
   categoryId: number;
   categoryName: string;
+  categoryIcon: CategoryIconName;
+  categoryColor: string;
   reminderTime: string;
   targetValue: number | null;
   unit: string;
@@ -98,6 +120,8 @@ export interface StatsHabit {
   id: number;
   name: string;
   categoryName: string;
+  categoryIcon: CategoryIconName;
+  categoryColor: string;
   targetValue: number | null;
   unit: string;
   stepValue: number;
