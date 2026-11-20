@@ -52,7 +52,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           api.NewRouter(api.NewHandler(habitStore, pushService), cfg.CORSOrigins),
+		Handler:           api.NewRouter(api.NewHandler(habitStore, pushService, cfg.FeedbackAdminEmail), cfg.CORSOrigins),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

@@ -4,18 +4,20 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"habit/backend/internal/push"
 	"habit/backend/internal/store"
 )
 
 type Handler struct {
-	store *store.Store
-	push  *push.Service
+	store              *store.Store
+	push               *push.Service
+	feedbackAdminEmail string
 }
 
-func NewHandler(st *store.Store, pushService *push.Service) *Handler {
-	return &Handler{store: st, push: pushService}
+func NewHandler(st *store.Store, pushService *push.Service, feedbackAdminEmail string) *Handler {
+	return &Handler{store: st, push: pushService, feedbackAdminEmail: strings.TrimSpace(feedbackAdminEmail)}
 }
 
 func (h *Handler) health(w http.ResponseWriter, _ *http.Request) {

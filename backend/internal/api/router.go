@@ -16,6 +16,9 @@ func NewRouter(handler *Handler, corsOrigins []string) http.Handler {
 	mux.HandleFunc("POST /api/auth/login", handler.login)
 	mux.HandleFunc("POST /api/auth/logout", handler.logout)
 	mux.HandleFunc("GET /api/auth/me", handler.me)
+	mux.HandleFunc("POST /api/feedback", handler.createFeedback)
+	mux.HandleFunc("GET /api/feedback", handler.listFeedback)
+	mux.HandleFunc("GET /api/feedback/access", handler.feedbackAccess)
 
 	mux.HandleFunc("GET /api/categories", handler.listCategories)
 	mux.HandleFunc("POST /api/categories", handler.createCategory)

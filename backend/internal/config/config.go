@@ -18,17 +18,21 @@ type Config struct {
 
 	// Public URL of the frontend, used as the target of notification clicks.
 	PublicAppURL string
+
+	// Email address allowed to review feedback submissions.
+	FeedbackAdminEmail string
 }
 
 func Load() Config {
 	cfg := Config{
-		Port:            getEnv("PORT", "8080"),
-		DatabaseURL:     getEnv("DATABASE_URL", "postgres://habit:habit@localhost:5432/habit?sslmode=disable"),
-		Environment:     getEnv("APP_ENV", "development"),
-		VAPIDPublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
-		VAPIDPrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
-		VAPIDSubject:    getEnv("VAPID_SUBJECT", "mailto:admin@example.com"),
-		PublicAppURL:    getEnv("PUBLIC_APP_URL", "http://localhost:3000"),
+		Port:               getEnv("PORT", "8080"),
+		DatabaseURL:        getEnv("DATABASE_URL", "postgres://habit:habit@localhost:5432/habit?sslmode=disable"),
+		Environment:        getEnv("APP_ENV", "development"),
+		VAPIDPublicKey:     getEnv("VAPID_PUBLIC_KEY", ""),
+		VAPIDPrivateKey:    getEnv("VAPID_PRIVATE_KEY", ""),
+		VAPIDSubject:       getEnv("VAPID_SUBJECT", "mailto:admin@example.com"),
+		PublicAppURL:       getEnv("PUBLIC_APP_URL", "http://localhost:3000"),
+		FeedbackAdminEmail: getEnv("FEEDBACK_ADMIN_EMAIL", ""),
 	}
 
 	origins := strings.Split(getEnv("CORS_ORIGINS", "*"), ",")

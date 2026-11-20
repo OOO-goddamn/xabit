@@ -10,6 +10,7 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  MessageSquareText,
   Plus,
   Sparkles,
   SunMedium,
@@ -22,6 +23,7 @@ import { cn, normalizePathname, toneFor } from "@/lib/utils";
 
 import { useAuth } from "./auth-provider";
 import { PushToggle } from "./push-toggle";
+import { FeedbackModal } from "./feedback-modal";
 import { ThemeToggle } from "./theme-toggle";
 
 const navItems = [
@@ -31,10 +33,17 @@ const navItems = [
   { href: "/stats", label: "Статистика", icon: BarChart3, exact: false },
 ];
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({
+  onNavigate,
+  onFeedbackOpen,
+}: {
+  onNavigate?: () => void;
+  onFeedbackOpen: () => void;
+}) {
   const pathname = normalizePathname(usePathname());
   const { user, logout } = useAuth();
   const { data: categories, error } = useSWR<Category[]>("/api/categories");
+  const { data: feedbackAccess } = useSWR<{ canView: boolean }>("/api/feedback/access");
 
   const initials = (user?.name || user?.email || "?")
     .split(/[\s@._-]+/)
@@ -83,9 +92,37 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         })}
       </nav>
 
+      {feedbackAccess?.canView ? (
+        <Link
+          href="/feedback"
+          onClick={onNavigate}
+          aria-current={pathname.startsWith("/feedback") ? "page" : undefined}
+          className={cn(
+            "mt-2 flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-all duration-200",
+            pathname.startsWith("/feedback")
+              ? "bg-forest-solid text-ivory shadow-[0_12px_24px_-16px_rgba(29,92,72,1)]"
+              : "text-muted hover:bg-ink/5 hover:text-ink",
+          )}
+        >
+          <MessageSquareText size={18} strokeWidth={1.8} />
+          Отзывы
+        </Link>
+      ) : null}
+
       <div className="mt-5 space-y-2 px-1">
         <ThemeToggle />
         <PushToggle />
+        <button
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            onFeedbackOpen();
+          }}
+          className="flex w-full items-center gap-2.5 rounded-2xl border border-line/70 bg-surface/45 px-3 py-2.5 text-left text-[12px] font-semibold text-muted transition hover:border-forest/25 hover:bg-surface hover:text-ink"
+        >
+          <MessageSquareText size={15} />
+          Оставить отзыв
+        </button>
         <div className="flex items-center gap-2.5 rounded-2xl border border-line/70 bg-surface/45 px-2.5 py-2">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-forest-solid text-[11px] font-bold text-ivory">
             {initials || "?"}
@@ -189,6 +226,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const pathname = normalizePathname(usePathname());
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -240,7 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[272px] border-r border-line/70 bg-sidebar/85 px-5 py-7 backdrop-blur-xl lg:flex">
-        <SidebarContent />
+        <SidebarContent onFeedbackOpen={() => setFeedbackOpen(true)} />
       </aside>
 
       <div className="lg:pl-[272px]">
@@ -286,10 +324,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <X size={16} />
             </button>
-            <SidebarContent onNavigate={() => setDrawerOpen(false)} />
+            <SidebarContent
+              onNavigate={() => setDrawerOpen(false)}
+              onFeedbackOpen={() => setFeedbackOpen(true)}
+            />
           </div>
         </div>
       ) : null}
+
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </div>
   );
 }

@@ -80,6 +80,7 @@ go run ./cmd/seed -force
 | `PORT`         | `8080`                                                            |
 | `DATABASE_URL` | `postgres://habit:habit@localhost:5432/habit?sslmode=disable`     |
 | `CORS_ORIGINS` | `*` (все origin)                                                   |
+| `FEEDBACK_ADMIN_EMAIL` | пусто (входящие отзывы отключены)                         |
 
 #### 3. Фронтенд
 
@@ -352,6 +353,14 @@ reminder_deliveries (
     sent_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (subscription_id, habit_id, date)
 )
+
+feedback (
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind       TEXT NOT NULL CHECK (kind IN ('idea', 'bug', 'other')),
+    message    TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)
 ```
 
 Особенности:
@@ -367,6 +376,9 @@ reminder_deliveries (
 | Метод    | Путь                          | Описание |
 | -------- | ----------------------------- | -------- |
 | `GET`    | `/api/health`                 | Проверка живости |
+| `POST`   | `/api/feedback`               | Отправить `{ "kind": "idea", "message": "..." }` (типы: `idea`, `bug`, `other`) |
+| `GET`    | `/api/feedback/access`        | Проверить, доступен ли текущему аккаунту inbox отзывов |
+| `GET`    | `/api/feedback`               | Последние 100 отзывов (только для `FEEDBACK_ADMIN_EMAIL`) |
 | `GET`    | `/api/categories`             | Категории с количеством привычек |
 | `POST`   | `/api/categories`             | Создать категорию `{ "name": "..." }` |
 | `PATCH`  | `/api/categories/{id}`        | Переименовать категорию |
@@ -388,12 +400,15 @@ reminder_deliveries (
 
 Даты — строки `YYYY-MM-DD`, время — ISO 8601. Ошибки возвращаются в виде `{ "error": "текст" }` с подходящим HTTP-статусом.
 
+Обратная связь доступна из бокового меню после входа. Сообщение ограничено 2000 символами и сохраняется вместе с аккаунтом пользователя. Чтобы открыть inbox в приложении, задайте `FEEDBACK_ADMIN_EMAIL` равным email нужного аккаунта в `.env` на сервере; только этот аккаунт увидит раздел «Отзывы» и сможет читать сообщения. Если переменная пустая, отзывы по-прежнему сохраняются, но inbox закрыт для всех.
+
 ## Страницы
 
 - **Сегодня** — прогресс дня, привычки по категориям, недельная сетка, серии, заметки; можно листать дни назад.
 - **Привычки** — карточки всех привычек, фильтр по категориям и поиск, создание, редактирование и удаление.
 - **Категории** — управление категориями и переход к привычкам категории.
 - **Статистика** — выполнение за 7/30/90 дней, тепловая карта по каждой привычке, сильные и слабые места.
+- **Обратная связь** — отправка идеи, сообщения об ошибке или другого отзыва из бокового меню.
 
 ## Полезные команды
 

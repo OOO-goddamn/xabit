@@ -151,3 +151,18 @@ export interface CompletionInput {
   value?: number;
   note: string;
 }
+
+export type FeedbackKind = "idea" | "bug" | "other";
+
+export interface FeedbackInput {
+  kind: FeedbackKind;
+  message: string;
+}
+
+export interface FeedbackItem {
+  id: number;
+  userEmail: string;
+  kind: FeedbackKind;
+  message: string;
+  createdAt: string;
+}

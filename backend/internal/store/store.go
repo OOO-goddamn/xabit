@@ -99,6 +99,49 @@ func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
 	return err
 }
 
+// ------------------------------------------------------------------- feedback
+
+type Feedback struct {
+	ID        int64     `json:"id"`
+	UserEmail string    `json:"userEmail"`
+	Kind      string    `json:"kind"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (s *Store) CreateFeedback(ctx context.Context, userID int64, kind, message string) (int64, time.Time, error) {
+	var id int64
+	var createdAt time.Time
+	err := s.pool.QueryRow(ctx,
+		`INSERT INTO feedback (user_id, kind, message) VALUES ($1, $2, $3) RETURNING id, created_at`,
+		userID, kind, message,
+	).Scan(&id, &createdAt)
+	return id, createdAt, err
+}
+
+func (s *Store) ListFeedback(ctx context.Context, limit int) ([]Feedback, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT f.id, u.email, f.kind, f.message, f.created_at
+		FROM feedback f
+		JOIN users u ON u.id = f.user_id
+		ORDER BY f.created_at DESC, f.id DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]Feedback, 0)
+	for rows.Next() {
+		var item Feedback
+		if err := rows.Scan(&item.ID, &item.UserEmail, &item.Kind, &item.Message, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 // ---------------------------------------------------------------- categories
 
 func (s *Store) ListCategories(ctx context.Context, userID int64) ([]models.Category, error) {

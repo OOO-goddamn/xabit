@@ -1,6 +1,8 @@
 import type {
   AuthResponse,
   CompletionInput,
+  FeedbackInput,
+  FeedbackItem,
   HabitInput,
   PushConfig,
   PushSubscriptionInput,
@@ -153,4 +155,11 @@ export const api = {
     request<void>("/api/push/subscriptions", "DELETE", { endpoint }),
 
   testPush: () => request<{ sent: number }>("/api/push/test", "POST"),
+
+  sendFeedback: (input: FeedbackInput) =>
+    request<{ id: number; createdAt: string }>("/api/feedback", "POST", input),
+
+  feedbackAccess: () => fetcher<{ canView: boolean }>("/api/feedback/access"),
+
+  listFeedback: () => fetcher<FeedbackItem[]>("/api/feedback"),
 };
