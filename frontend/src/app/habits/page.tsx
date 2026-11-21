@@ -8,6 +8,7 @@ import {
   BellRing,
   CalendarDays,
   Flame,
+  ListPlus,
   Pencil,
   Plus,
   Search,
@@ -16,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { BulkHabitsModal } from "@/components/bulk-habits-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CategoryIcon, categoryContrastText } from "@/components/category-appearance";
 import { HabitFormModal } from "@/components/habit-form-modal";
@@ -82,6 +84,7 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
   const [filter, setFilter] = useState<number | null>(initialFilter);
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [editing, setEditing] = useState<DashboardHabit | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DashboardHabit | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -170,9 +173,14 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
               : "Здесь появится список ваших ежедневных шагов."}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus size={17} /> Новая привычка
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setBulkOpen(true)}>
+            <ListPlus size={16} /> Разобрать список
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus size={17} /> Новая привычка
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -378,6 +386,12 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
         }}
         categories={categories ?? []}
         habit={editing}
+      />
+
+      <BulkHabitsModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        categories={categories ?? []}
       />
 
       <ConfirmDialog
