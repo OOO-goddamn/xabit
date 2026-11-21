@@ -45,6 +45,7 @@ type dashboardResponse struct {
 	WeekEnd   string           `json:"weekEnd"`
 	Stats     dashboardStats   `json:"stats"`
 	Habits    []dashboardHabit `json:"habits"`
+	Tasks     []models.Task    `json:"tasks"`
 }
 
 func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -167,12 +168,20 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		stats.Rate30 = round1(float64(done30Total) / float64(due30Total) * 100)
 	}
 
+	isToday := date.Format(time.DateOnly) == today().Format(time.DateOnly)
+	tasks, err := h.store.ListTasksForDate(r.Context(), currentUserID(r), date, isToday)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+
 	writeJSON(w, http.StatusOK, dashboardResponse{
 		Date:      date.Format(time.DateOnly),
 		WeekStart: weekStart.Format(time.DateOnly),
 		WeekEnd:   weekEnd.Format(time.DateOnly),
 		Stats:     stats,
 		Habits:    result,
+		Tasks:     tasks,
 	})
 }
 

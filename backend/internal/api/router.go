@@ -40,6 +40,12 @@ func NewRouter(handler *Handler, corsOrigins []string) http.Handler {
 	mux.HandleFunc("GET /api/dashboard", handler.dashboard)
 	mux.HandleFunc("GET /api/stats", handler.stats)
 
+	mux.HandleFunc("GET /api/tasks", handler.listTasks)
+	mux.HandleFunc("POST /api/tasks", handler.createTask)
+	mux.HandleFunc("PUT /api/tasks/order", handler.reorderTasks)
+	mux.HandleFunc("PATCH /api/tasks/{id}", handler.updateTask)
+	mux.HandleFunc("DELETE /api/tasks/{id}", handler.deleteTask)
+
 	mux.HandleFunc("GET /api/push/config", handler.pushConfig)
 	mux.HandleFunc("POST /api/push/subscriptions", handler.savePushSubscription)
 	mux.HandleFunc("DELETE /api/push/subscriptions", handler.deletePushSubscription)

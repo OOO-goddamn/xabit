@@ -7,6 +7,8 @@ import type {
   HabitInput,
   PushConfig,
   PushSubscriptionInput,
+  Task,
+  TaskInput,
   User,
 } from "@/lib/types";
 import { authHeaders, clearToken } from "@/lib/session";
@@ -169,4 +171,15 @@ export const api = {
   feedbackAccess: () => fetcher<{ canView: boolean }>("/api/feedback/access"),
 
   listFeedback: () => fetcher<FeedbackItem[]>("/api/feedback"),
+
+  listTasks: () => fetcher<Task[]>("/api/tasks"),
+
+  createTask: (input: TaskInput) => request<Task>("/api/tasks", "POST", input),
+
+  updateTask: (id: number, input: TaskInput) =>
+    request<Task>(`/api/tasks/${id}`, "PATCH", input),
+
+  deleteTask: (id: number) => request<void>(`/api/tasks/${id}`, "DELETE"),
+
+  reorderTasks: (ids: number[]) => request<void>("/api/tasks/order", "PUT", { ids }),
 };

@@ -16,6 +16,16 @@ type Category struct {
 	HabitCount int    `json:"habitCount"`
 }
 
+// Task is a one-off to-do item, unlike a habit which repeats on a schedule.
+type Task struct {
+	ID        int64     `json:"id"`
+	Title     string    `json:"title"`
+	Note      string    `json:"note"`
+	DueDate   *string   `json:"dueDate"`
+	Done      bool      `json:"done"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 type User struct {
 	ID           int64     `json:"id"`
 	Email        string    `json:"email"`

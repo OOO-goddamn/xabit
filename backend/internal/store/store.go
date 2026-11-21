@@ -414,6 +414,135 @@ func (s *Store) DeleteHabit(ctx context.Context, userID, id int64) error {
 	return nil
 }
 
+// --------------------------------------------------------------------- tasks
+
+const taskSelect = `
+	SELECT id, title, note, due_date, done, created_at
+	FROM tasks`
+
+func (s *Store) ListTasks(ctx context.Context, userID int64) ([]models.Task, error) {
+	rows, err := s.pool.Query(ctx,
+		taskSelect+` WHERE user_id = $1 ORDER BY done, sort_order, id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tasks := make([]models.Task, 0)
+	for rows.Next() {
+		task, err := scanTask(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, rows.Err()
+}
+
+// ListTasksForDate returns unfinished tasks for the given day. Undated tasks
+// are included only for today: they are the user's backlog and would look
+// out of place on a day in the past.
+func (s *Store) ListTasksForDate(ctx context.Context, userID int64, date time.Time, includeUndated bool) ([]models.Task, error) {
+	query := taskSelect + ` WHERE user_id = $1 AND NOT done AND (due_date = $2`
+	args := []any{userID, date}
+	if includeUndated {
+		query += ` OR due_date IS NULL`
+	}
+	query += `) ORDER BY sort_order, id`
+
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tasks := make([]models.Task, 0)
+	for rows.Next() {
+		task, err := scanTask(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, rows.Err()
+}
+
+func (s *Store) CreateTask(ctx context.Context, userID int64, title, note string, dueDate *time.Time) (models.Task, error) {
+	row := s.pool.QueryRow(ctx, `
+		INSERT INTO tasks (user_id, title, note, due_date, sort_order)
+		VALUES ($1, $2, $3, $4,
+		        COALESCE((SELECT MAX(sort_order) + 1 FROM tasks WHERE user_id = $1), 0))
+		RETURNING id, title, note, due_date, done, created_at`,
+		userID, title, note, dueDate)
+	return scanTask(row)
+}
+
+// UpdateTask replaces the editable fields. The client always sends the full
+// task, so a nil dueDate reliably means "no date".
+func (s *Store) UpdateTask(ctx context.Context, userID, id int64, title, note string, dueDate *time.Time, done bool) (models.Task, error) {
+	row := s.pool.QueryRow(ctx, `
+		UPDATE tasks
+		SET title = $3, note = $4, due_date = $5, done = $6,
+		    completed_at = CASE WHEN $6 THEN COALESCE(completed_at, now()) ELSE NULL END
+		WHERE id = $1 AND user_id = $2
+		RETURNING id, title, note, due_date, done, created_at`,
+		id, userID, title, note, dueDate, done)
+
+	task, err := scanTask(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return task, ErrNotFound
+	}
+	return task, err
+}
+
+func (s *Store) DeleteTask(ctx context.Context, userID, id int64) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM tasks WHERE id = $1 AND user_id = $2`, id, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ReorderTasks assigns sort_order by the given sequence. Only the listed tasks
+// are touched, so separate groups (today, undated, later) can be reordered
+// independently.
+func (s *Store) ReorderTasks(ctx context.Context, userID int64, ids []int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for position, id := range ids {
+		tag, err := tx.Exec(ctx,
+			`UPDATE tasks SET sort_order = $3 WHERE id = $1 AND user_id = $2`,
+			id, userID, position,
+		)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return ErrInvalidOrder
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func scanTask(row habitRow) (models.Task, error) {
+	var task models.Task
+	var dueDate *time.Time
+
+	err := row.Scan(&task.ID, &task.Title, &task.Note, &dueDate, &task.Done, &task.CreatedAt)
+	if dueDate != nil {
+		formatted := dueDate.Format(time.DateOnly)
+		task.DueDate = &formatted
+	}
+	return task, err
+}
+
 type habitRow interface {
 	Scan(dest ...any) error
 }

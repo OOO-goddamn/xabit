@@ -23,6 +23,7 @@ import { CategoryIcon } from "@/components/category-appearance";
 import { HabitFormModal } from "@/components/habit-form-modal";
 import { HabitRow } from "@/components/habit-row";
 import { SortControls } from "@/components/sort-controls";
+import { TodayTasks } from "@/components/today-tasks";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/empty-state";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -421,6 +422,13 @@ export default function DashboardPage() {
           </dl>
         </aside>
       </div>
+
+      <TodayTasks
+        tasks={data.tasks ?? []}
+        date={date}
+        today={today ?? data.date}
+        onChanged={() => mutate()}
+      />
 
       {data.habits.length === 0 ? (
         <EmptyState

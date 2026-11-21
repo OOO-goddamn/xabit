@@ -99,6 +99,23 @@ export interface DashboardResponse {
   weekEnd: string;
   stats: DashboardStats;
   habits: DashboardHabit[];
+  tasks: Task[];
+}
+
+export interface Task {
+  id: number;
+  title: string;
+  note: string;
+  dueDate: string | null;
+  done: boolean;
+  createdAt: string;
+}
+
+export interface TaskInput {
+  title: string;
+  note: string;
+  dueDate: string | null;
+  done: boolean;
 }
 
 export interface StatsTotals {

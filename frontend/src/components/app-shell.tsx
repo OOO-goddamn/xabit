@@ -8,6 +8,7 @@ import {
   BarChart3,
   Leaf,
   ListChecks,
+  ListTodo,
   LogOut,
   Menu,
   MessageSquareText,
@@ -30,6 +31,7 @@ import { ThemeToggle } from "./theme-toggle";
 const navItems = [
   { href: "/", label: "Сегодня", icon: SunMedium, exact: true },
   { href: "/habits", label: "Привычки", icon: ListChecks, exact: false },
+  { href: "/tasks", label: "Задачи", icon: ListTodo, exact: false },
   { href: "/categories", label: "Категории", icon: Tags, exact: false },
   { href: "/stats", label: "Статистика", icon: BarChart3, exact: false },
 ];
