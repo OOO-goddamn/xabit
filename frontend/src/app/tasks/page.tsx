@@ -13,7 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { useClientToday } from "@/hooks/use-client-today";
 import { useRevalidateApi } from "@/hooks/use-revalidate-api";
 import { api } from "@/lib/api";
-import type { Task, TaskInput } from "@/lib/types";
+import type { Task } from "@/lib/types";
 import { errorMessage, pluralRu, todayISO } from "@/lib/utils";
 
 function tasksWord(count: number) {
@@ -24,6 +24,7 @@ export default function TasksPage() {
   const clientToday = useClientToday();
   const { data, error, mutate } = useSWR<Task[]>("/api/tasks");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Task | null>(null);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [sorting, setSorting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
@@ -49,17 +50,6 @@ export default function TasksPage() {
       toast(errorMessage(requestError), "error");
     } finally {
       setPendingId(null);
-    }
-  }
-
-  async function handleSave(task: Task, input: TaskInput) {
-    try {
-      await api.updateTask(task.id, input);
-      await revalidate();
-      toast("Задача обновлена");
-    } catch (requestError) {
-      toast(errorMessage(requestError), "error");
-      throw requestError;
     }
   }
 
@@ -155,7 +145,7 @@ export default function TasksPage() {
               today={today}
               pending={pendingId === task.id}
               onToggle={(item) => void handleToggle(item)}
-              onSave={handleSave}
+              onEdit={setEditTarget}
               onDelete={setDeleteTarget}
               sortControls={
                 tasks.length > 1
@@ -223,7 +213,7 @@ export default function TasksPage() {
                 today={today}
                 pending={pendingId === task.id}
                 onToggle={(item) => void handleToggle(item)}
-                onSave={handleSave}
+                onEdit={setEditTarget}
                 onDelete={setDeleteTarget}
               />
             ))}
@@ -246,6 +236,12 @@ export default function TasksPage() {
       />
 
       <TaskFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
+
+      <TaskFormModal
+        open={editTarget !== null}
+        task={editTarget}
+        onClose={() => setEditTarget(null)}
+      />
     </div>
   );
 }

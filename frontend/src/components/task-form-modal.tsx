@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
@@ -10,23 +10,31 @@ import { PriorityPicker } from "@/components/priority-picker";
 import { useToast } from "@/components/ui/toast";
 import { useRevalidateApi } from "@/hooks/use-revalidate-api";
 import { api } from "@/lib/api";
-import type { TaskPriority } from "@/lib/types";
+import type { Task, TaskPriority } from "@/lib/types";
 import { cn, errorMessage, formatLongDate, todayISO } from "@/lib/utils";
 
-export function TaskFormModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function TaskFormModal({
+  open,
+  onClose,
+  task,
+}: {
+  open: boolean;
+  onClose: () => void;
+  task?: Task | null;
+}) {
   if (!open) {
     return null;
   }
 
-  return <TaskDialog onClose={onClose} />;
+  return <TaskDialog key={task?.id ?? "new"} onClose={onClose} task={task ?? null} />;
 }
 
-function TaskDialog({ onClose }: { onClose: () => void }) {
+function TaskDialog({ onClose, task }: { onClose: () => void; task: Task | null }) {
   const today = todayISO();
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [priority, setPriority] = useState<TaskPriority>("normal");
-  const [dueDate, setDueDate] = useState(today);
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [note, setNote] = useState(task?.note ?? "");
+  const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "normal");
+  const [dueDate, setDueDate] = useState(task ? (task.dueDate ?? "") : today);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,15 +52,22 @@ function TaskDialog({ onClose }: { onClose: () => void }) {
     setSaving(true);
     setError(null);
     try {
-      await api.createTask({
+      const input = {
         title: trimmed,
         note: note.trim(),
         priority,
         dueDate: dueDate || null,
-        done: false,
-      });
+        done: task?.done ?? false,
+      };
+
+      if (task) {
+        await api.updateTask(task.id, input);
+      } else {
+        await api.createTask(input);
+      }
+
       await revalidate();
-      toast("Задача добавлена");
+      toast(task ? "Задача обновлена" : "Задача добавлена");
       onClose();
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -64,9 +79,17 @@ function TaskDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal
       open
-      onClose={onClose}
-      title="Новая задача"
-      description="Разовое дело: короткое название, детали в описании и дата, если она важна."
+      onClose={() => {
+        if (!saving) {
+          onClose();
+        }
+      }}
+      title={task ? "Редактировать задачу" : "Новая задача"}
+      description={
+        task
+          ? "Измените название, описание, приоритет или дату."
+          : "Разовое дело: короткое название, детали в описании и дата, если она важна."
+      }
       size="sm"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -143,8 +166,14 @@ function TaskDialog({ onClose }: { onClose: () => void }) {
             Отмена
           </Button>
           <Button type="submit" disabled={saving || !title.trim()}>
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            Создать
+            {saving ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : task ? (
+              <Save size={16} />
+            ) : (
+              <Plus size={16} />
+            )}
+            {task ? "Сохранить" : "Создать"}
           </Button>
         </div>
       </form>
