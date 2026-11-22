@@ -4,8 +4,9 @@ import { useState } from "react";
 import { CalendarDays, Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 
 import { SortControls } from "@/components/sort-controls";
+import { PriorityPicker, priorityLabel } from "@/components/priority-picker";
 import { Input, Textarea } from "@/components/ui/field";
-import type { Task, TaskInput } from "@/lib/types";
+import type { Task, TaskInput, TaskPriority } from "@/lib/types";
 import { cn, formatShortDate } from "@/lib/utils";
 
 function dateLabel(task: Task, today: string) {
@@ -44,6 +45,7 @@ export function TaskRow({
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [note, setNote] = useState(task.note);
+  const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -52,6 +54,7 @@ export function TaskRow({
   function startEditing() {
     setTitle(task.title);
     setNote(task.note);
+    setPriority(task.priority);
     setDueDate(task.dueDate ?? "");
     setEditing(true);
   }
@@ -68,6 +71,7 @@ export function TaskRow({
       await onSave(task, {
         title: trimmed,
         note: note.trim(),
+        priority,
         dueDate: dueDate || null,
         done: task.done,
       });
@@ -98,6 +102,9 @@ export function TaskRow({
             onChange={(event) => setDueDate(event.target.value)}
             className="sm:w-40"
           />
+        </div>
+        <div className="mt-2">
+          <PriorityPicker value={priority} onChange={setPriority} disabled={saving} />
         </div>
         <div className="mt-2">
           <Textarea
@@ -183,6 +190,18 @@ export function TaskRow({
             <CalendarDays size={11} />
             {dateLabel(task, today)}
           </span>
+          {task.priority !== "normal" ? (
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold",
+                task.priority === "high"
+                  ? "bg-clay-soft text-clay"
+                  : "bg-slate-soft text-slate-ink",
+              )}
+            >
+              {priorityLabel(task.priority)}
+            </span>
+          ) : null}
         </div>
         {task.note ? (
           <p className="mt-1 line-clamp-2 whitespace-pre-line break-words text-[12px] leading-snug text-muted">

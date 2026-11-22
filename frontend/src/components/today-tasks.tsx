@@ -36,7 +36,7 @@ export function TodayTasks({
 
     setSaving(true);
     try {
-      await api.createTask({ title: trimmed, note: "", dueDate: date, done: false });
+      await api.createTask({ title: trimmed, note: "", priority: "normal", dueDate: date, done: false });
       await onChanged();
       setTitle("");
       toast("Задача добавлена");
@@ -53,6 +53,7 @@ export function TodayTasks({
       await api.updateTask(task.id, {
         title: task.title,
         note: task.note,
+        priority: task.priority,
         dueDate: task.dueDate,
         done: true,
       });
@@ -109,6 +110,12 @@ export function TodayTasks({
                 {pendingId === task.id ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
               </button>
               <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">
+                {task.priority === "high" ? (
+                  <span
+                    className="mr-1.5 inline-block h-2 w-2 rounded-full bg-clay align-middle"
+                    title="Высокий приоритет"
+                  />
+                ) : null}
                 {task.title}
               </span>
               <span className="shrink-0 text-[11px] font-semibold text-muted">

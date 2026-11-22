@@ -417,7 +417,7 @@ func (s *Store) DeleteHabit(ctx context.Context, userID, id int64) error {
 // --------------------------------------------------------------------- tasks
 
 const taskSelect = `
-	SELECT id, title, note, due_date, done, created_at
+	SELECT id, title, note, priority, due_date, done, created_at
 	FROM tasks`
 
 func (s *Store) ListTasks(ctx context.Context, userID int64) ([]models.Task, error) {
@@ -467,26 +467,26 @@ func (s *Store) ListTasksForDate(ctx context.Context, userID int64, date time.Ti
 	return tasks, rows.Err()
 }
 
-func (s *Store) CreateTask(ctx context.Context, userID int64, title, note string, dueDate *time.Time) (models.Task, error) {
+func (s *Store) CreateTask(ctx context.Context, userID int64, title, note, priority string, dueDate *time.Time) (models.Task, error) {
 	row := s.pool.QueryRow(ctx, `
-		INSERT INTO tasks (user_id, title, note, due_date, sort_order)
-		VALUES ($1, $2, $3, $4,
+		INSERT INTO tasks (user_id, title, note, priority, due_date, sort_order)
+		VALUES ($1, $2, $3, $4, $5,
 		        COALESCE((SELECT MAX(sort_order) + 1 FROM tasks WHERE user_id = $1), 0))
-		RETURNING id, title, note, due_date, done, created_at`,
-		userID, title, note, dueDate)
+		RETURNING id, title, note, priority, due_date, done, created_at`,
+		userID, title, note, priority, dueDate)
 	return scanTask(row)
 }
 
 // UpdateTask replaces the editable fields. The client always sends the full
 // task, so a nil dueDate reliably means "no date".
-func (s *Store) UpdateTask(ctx context.Context, userID, id int64, title, note string, dueDate *time.Time, done bool) (models.Task, error) {
+func (s *Store) UpdateTask(ctx context.Context, userID, id int64, title, note, priority string, dueDate *time.Time, done bool) (models.Task, error) {
 	row := s.pool.QueryRow(ctx, `
 		UPDATE tasks
-		SET title = $3, note = $4, due_date = $5, done = $6,
-		    completed_at = CASE WHEN $6 THEN COALESCE(completed_at, now()) ELSE NULL END
+		SET title = $3, note = $4, priority = $5, due_date = $6, done = $7,
+		    completed_at = CASE WHEN $7 THEN COALESCE(completed_at, now()) ELSE NULL END
 		WHERE id = $1 AND user_id = $2
-		RETURNING id, title, note, due_date, done, created_at`,
-		id, userID, title, note, dueDate, done)
+		RETURNING id, title, note, priority, due_date, done, created_at`,
+		id, userID, title, note, priority, dueDate, done)
 
 	task, err := scanTask(row)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -535,7 +535,7 @@ func scanTask(row habitRow) (models.Task, error) {
 	var task models.Task
 	var dueDate *time.Time
 
-	err := row.Scan(&task.ID, &task.Title, &task.Note, &dueDate, &task.Done, &task.CreatedAt)
+	err := row.Scan(&task.ID, &task.Title, &task.Note, &task.Priority, &dueDate, &task.Done, &task.CreatedAt)
 	if dueDate != nil {
 		formatted := dueDate.Format(time.DateOnly)
 		task.DueDate = &formatted

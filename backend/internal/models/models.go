@@ -21,6 +21,7 @@ type Task struct {
 	ID        int64     `json:"id"`
 	Title     string    `json:"title"`
 	Note      string    `json:"note"`
+	Priority  string    `json:"priority"`
 	DueDate   *string   `json:"dueDate"`
 	Done      bool      `json:"done"`
 	CreatedAt time.Time `json:"createdAt"`

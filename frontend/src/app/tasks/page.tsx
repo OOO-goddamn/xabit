@@ -40,6 +40,7 @@ export default function TasksPage() {
       await api.updateTask(task.id, {
         title: task.title,
         note: task.note,
+        priority: task.priority,
         dueDate: task.dueDate,
         done: !task.done,
       });

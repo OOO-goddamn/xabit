@@ -13,10 +13,11 @@ const (
 )
 
 type taskPayload struct {
-	Title   string  `json:"title"`
-	Note    string  `json:"note"`
-	DueDate *string `json:"dueDate"`
-	Done    bool    `json:"done"`
+	Title    string  `json:"title"`
+	Note     string  `json:"note"`
+	Priority string  `json:"priority"`
+	DueDate  *string `json:"dueDate"`
+	Done     bool    `json:"done"`
 }
 
 func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
@@ -35,13 +36,13 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	title, note, dueDate, err := validateTask(payload)
+	title, note, priority, dueDate, err := validateTask(payload)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	task, err := h.store.CreateTask(r.Context(), currentUserID(r), title, note, dueDate)
+	task, err := h.store.CreateTask(r.Context(), currentUserID(r), title, note, priority, dueDate)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -62,13 +63,13 @@ func (h *Handler) updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	title, note, dueDate, err := validateTask(payload)
+	title, note, priority, dueDate, err := validateTask(payload)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	task, err := h.store.UpdateTask(r.Context(), currentUserID(r), id, title, note, dueDate, payload.Done)
+	task, err := h.store.UpdateTask(r.Context(), currentUserID(r), id, title, note, priority, dueDate, payload.Done)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -110,22 +111,41 @@ func (h *Handler) reorderTasks(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func validateTask(payload taskPayload) (string, string, *time.Time, error) {
+func validateTask(payload taskPayload) (string, string, string, *time.Time, error) {
 	title, err := validateName(payload.Title, "Название задачи", maxTaskTitleLen)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", "", nil, err
 	}
 
 	note := strings.TrimSpace(payload.Note)
 	if len([]rune(note)) > maxTaskNoteLen {
-		return "", "", nil, errors.New("Описание не должно быть длиннее 2000 символов")
+		return "", "", "", nil, errors.New("Описание не должно быть длиннее 2000 символов")
+	}
+
+	priority, err := validateTaskPriority(payload.Priority)
+	if err != nil {
+		return "", "", "", nil, err
 	}
 
 	dueDate, err := optionalDate(payload.DueDate)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", "", nil, err
 	}
-	return title, note, dueDate, nil
+	return title, note, priority, dueDate, nil
+}
+
+// validateTaskPriority treats an empty value as the default so older clients
+// keep working.
+func validateTaskPriority(raw string) (string, error) {
+	priority := strings.ToLower(strings.TrimSpace(raw))
+	switch priority {
+	case "":
+		return "normal", nil
+	case "low", "normal", "high":
+		return priority, nil
+	default:
+		return "", errors.New("Приоритет может быть low, normal или high")
+	}
 }
 
 // optionalDate parses "YYYY-MM-DD"; an empty value or JSON null means the task

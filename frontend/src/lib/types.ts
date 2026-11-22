@@ -106,14 +106,18 @@ export interface Task {
   id: number;
   title: string;
   note: string;
+  priority: TaskPriority;
   dueDate: string | null;
   done: boolean;
   createdAt: string;
 }
 
+export type TaskPriority = "low" | "normal" | "high";
+
 export interface TaskInput {
   title: string;
   note: string;
+  priority: TaskPriority;
   dueDate: string | null;
   done: boolean;
 }

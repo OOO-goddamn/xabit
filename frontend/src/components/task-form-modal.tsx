@@ -6,9 +6,11 @@ import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
+import { PriorityPicker } from "@/components/priority-picker";
 import { useToast } from "@/components/ui/toast";
 import { useRevalidateApi } from "@/hooks/use-revalidate-api";
 import { api } from "@/lib/api";
+import type { TaskPriority } from "@/lib/types";
 import { cn, errorMessage, formatLongDate, todayISO } from "@/lib/utils";
 
 export function TaskFormModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -23,6 +25,7 @@ function TaskDialog({ onClose }: { onClose: () => void }) {
   const today = todayISO();
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
+  const [priority, setPriority] = useState<TaskPriority>("normal");
   const [dueDate, setDueDate] = useState(today);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +47,7 @@ function TaskDialog({ onClose }: { onClose: () => void }) {
       await api.createTask({
         title: trimmed,
         note: note.trim(),
+        priority,
         dueDate: dueDate || null,
         done: false,
       });
@@ -86,6 +90,10 @@ function TaskDialog({ onClose }: { onClose: () => void }) {
             onChange={(event) => setNote(event.target.value)}
             placeholder="Детали, ссылки, что учесть"
           />
+        </Field>
+
+        <Field label="Приоритет">
+          <PriorityPicker value={priority} onChange={setPriority} disabled={saving} />
         </Field>
 
         <Field label="Дата" htmlFor="task-date" hint="Можно оставить без даты">

@@ -2,6 +2,33 @@ package api
 
 import "testing"
 
+func TestValidateTaskPriority(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{name: "empty defaults to normal", raw: "", want: "normal"},
+		{name: "low", raw: "low", want: "low"},
+		{name: "high with spaces", raw: " HIGH ", want: "high"},
+		{name: "normal", raw: "normal", want: "normal"},
+		{name: "unknown", raw: "urgent", wantErr: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			priority, err := validateTaskPriority(test.raw)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validateTaskPriority() error = %v, wantErr %v", err, test.wantErr)
+			}
+			if err == nil && priority != test.want {
+				t.Fatalf("validateTaskPriority() = %q, want %q", priority, test.want)
+			}
+		})
+	}
+}
+
 func TestOptionalDate(t *testing.T) {
 	empty := ""
 	blank := "   "
