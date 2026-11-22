@@ -18,6 +18,7 @@ import {
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CategoryIcon, categoryContrastText } from "@/components/category-appearance";
+import { SortControls } from "@/components/sort-controls";
 import { HabitFormModal } from "@/components/habit-form-modal";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/empty-state";
@@ -85,6 +86,7 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
   const [editing, setEditing] = useState<DashboardHabit | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DashboardHabit | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sorting, setSorting] = useState(false);
 
   const { toast } = useToast();
   const revalidate = useRevalidateApi();
@@ -107,6 +109,40 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
       return matchesCategory && matchesQuery;
     });
   }, [data?.habits, filter, query]);
+
+  const habitOrder = useMemo(() => {
+    const order = new Map<number, number[]>();
+    for (const habit of data?.habits ?? []) {
+      const ids = order.get(habit.categoryId);
+      if (ids) {
+        ids.push(habit.id);
+      } else {
+        order.set(habit.categoryId, [habit.id]);
+      }
+    }
+    return order;
+  }, [data?.habits]);
+
+  async function moveHabit(categoryId: number, habitId: number, direction: -1 | 1) {
+    const ids = [...(habitOrder.get(categoryId) ?? [])];
+    const index = ids.indexOf(habitId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= ids.length) {
+      return;
+    }
+
+    [ids[index], ids[targetIndex]] = [ids[targetIndex], ids[index]];
+
+    setSorting(true);
+    try {
+      await api.reorderHabits(categoryId, ids);
+      await mutate();
+    } catch (requestError) {
+      toast(errorMessage(requestError), "error");
+    } finally {
+      setSorting(false);
+    }
+  }
 
   function openCreate() {
     setEditing(null);
@@ -250,6 +286,8 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
             const target = habit.targetValue ?? 0;
             const isQuantity = target > 0;
             const value = habit.completion?.value ?? 0;
+            const siblingIds = habitOrder.get(habit.categoryId) ?? [];
+            const position = siblingIds.indexOf(habit.id);
 
             return (
               <article
@@ -259,14 +297,24 @@ function HabitsContent({ initialFilter }: { initialFilter: number | null }) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold"
+                    className="inline-flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold"
                     style={{ color: habit.categoryColor, backgroundColor: `${habit.categoryColor}1A` }}
                   >
-                    <CategoryIcon name={habit.categoryIcon} size={12} />
-                    {habit.categoryName}
+                    <CategoryIcon name={habit.categoryIcon} size={12} className="shrink-0" />
+                    <span className="truncate">{habit.categoryName}</span>
                   </span>
 
-                  <div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+                  <div className="flex items-center gap-0.5">
+                    {siblingIds.length > 1 ? (
+                      <SortControls
+                        label={`привычку «${habit.name}»`}
+                        canMoveUp={position > 0}
+                        canMoveDown={position >= 0 && position < siblingIds.length - 1}
+                        disabled={sorting}
+                        onMoveUp={() => void moveHabit(habit.categoryId, habit.id, -1)}
+                        onMoveDown={() => void moveHabit(habit.categoryId, habit.id, 1)}
+                      />
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => openEdit(habit)}

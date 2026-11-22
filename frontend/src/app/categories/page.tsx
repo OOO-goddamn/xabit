@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { CategoryIcon } from "@/components/category-appearance";
+import { SortControls } from "@/components/sort-controls";
 import { CategoryFormModal } from "@/components/category-form-modal";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -28,6 +29,7 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sorting, setSorting] = useState(false);
 
   const { toast } = useToast();
   const revalidate = useRevalidateApi();
@@ -58,6 +60,29 @@ export default function CategoriesPage() {
       toast(errorMessage(requestError), "error");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function moveCategory(index: number, direction: -1 | 1) {
+    if (!categories) {
+      return;
+    }
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= categories.length) {
+      return;
+    }
+
+    const ids = categories.map((category) => category.id);
+    [ids[index], ids[targetIndex]] = [ids[targetIndex], ids[index]];
+
+    setSorting(true);
+    try {
+      await api.reorderCategories(ids);
+      await mutate();
+    } catch (requestError) {
+      toast(errorMessage(requestError), "error");
+    } finally {
+      setSorting(false);
     }
   }
 
@@ -128,7 +153,17 @@ export default function CategoriesPage() {
                     <CategoryIcon name={category.icon} size={20} />
                   </span>
 
-                  <div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+                  <div className="flex items-center gap-0.5">
+                    {categories.length > 1 ? (
+                      <SortControls
+                        label={`категорию «${category.name}»`}
+                        canMoveUp={index > 0}
+                        canMoveDown={index < categories.length - 1}
+                        disabled={sorting}
+                        onMoveUp={() => void moveCategory(index, -1)}
+                        onMoveDown={() => void moveCategory(index, 1)}
+                      />
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => openEdit(category)}

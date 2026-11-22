@@ -15,7 +15,6 @@ import {
 import type { CompletionStatus, DashboardHabit } from "@/lib/types";
 import { cn, formatShortDate } from "@/lib/utils";
 
-import { SortControls } from "./sort-controls";
 import { QuantityProgress } from "./quantity-progress";
 import { WeekDots } from "./week-dots";
 
@@ -27,7 +26,6 @@ export function HabitRow({
   onSetStatus,
   onSetProgress,
   onOpenNote,
-  sortControls,
 }: {
   habit: DashboardHabit;
   date: string;
@@ -36,13 +34,6 @@ export function HabitRow({
   onSetStatus: (habit: DashboardHabit, status: CompletionStatus | null) => void;
   onSetProgress: (habit: DashboardHabit, value: number) => void;
   onOpenNote: (habit: DashboardHabit) => void;
-  sortControls?: {
-    canMoveUp: boolean;
-    canMoveDown: boolean;
-    disabled: boolean;
-    onMoveUp: () => void;
-    onMoveDown: () => void;
-  };
 }) {
   const status = habit.completion?.status ?? null;
   const note = habit.completion?.note ?? "";
@@ -137,14 +128,6 @@ export function HabitRow({
             <span className="h-2 w-2 rounded-full bg-line transition group-hover:bg-forest/40" />
           )}
         </button>
-
-        {sortControls ? (
-          <SortControls
-            label={`привычку «${habit.name}»`}
-            orientation="vertical"
-            {...sortControls}
-          />
-        ) : null}
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
