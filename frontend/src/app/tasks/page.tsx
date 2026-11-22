@@ -4,17 +4,17 @@ import { useState } from "react";
 import useSWR from "swr";
 import { AlertTriangle, ListTodo, Plus, Sparkles } from "lucide-react";
 
+import { TaskFormModal } from "@/components/task-form-modal";
 import { TaskRow } from "@/components/task-row";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState, Skeleton } from "@/components/ui/empty-state";
-import { Input, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { useClientToday } from "@/hooks/use-client-today";
 import { useRevalidateApi } from "@/hooks/use-revalidate-api";
 import { api } from "@/lib/api";
 import type { Task, TaskInput } from "@/lib/types";
-import { cn, errorMessage, pluralRu, todayISO } from "@/lib/utils";
+import { errorMessage, pluralRu, todayISO } from "@/lib/utils";
 
 function tasksWord(count: number) {
   return `${count} ${pluralRu(count, "задача", "задачи", "задач")}`;
@@ -23,10 +23,7 @@ function tasksWord(count: number) {
 export default function TasksPage() {
   const clientToday = useClientToday();
   const { data, error, mutate } = useSWR<Task[]>("/api/tasks");
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [sorting, setSorting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
@@ -36,27 +33,6 @@ export default function TasksPage() {
   const revalidate = useRevalidateApi();
 
   const today = clientToday ?? todayISO();
-
-  async function handleAdd(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const trimmed = title.trim();
-    if (!trimmed) {
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await api.createTask({ title: trimmed, note: note.trim(), dueDate: dueDate || null, done: false });
-      await revalidate();
-      setTitle("");
-      setNote("");
-      toast("Задача добавлена");
-    } catch (requestError) {
-      toast(errorMessage(requestError), "error");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function handleToggle(task: Task) {
     setPendingId(task.id);
@@ -200,85 +176,28 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-7">
-      <header>
-        <p className="eyebrow">Разовые дела</p>
-        <h1 className="mt-2 font-display text-[42px] leading-[1.02] text-ink sm:text-5xl">
-          Задачи
-        </h1>
-        <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">
-          {active.length > 0
-            ? `${tasksWord(active.length)} без отметки. Привычки остаются в своём разделе — здесь только то, что делается один раз.`
-            : "Список дел, которые нужно сделать один раз. Привычки с повторением живут отдельно."}
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="eyebrow">Разовые дела</p>
+          <h1 className="mt-2 font-display text-[42px] leading-[1.02] text-ink sm:text-5xl">
+            Задачи
+          </h1>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">
+            {active.length > 0
+              ? `${tasksWord(active.length)} без отметки. Привычки остаются в своём разделе — здесь только то, что делается один раз.`
+              : "Список дел, которые нужно сделать один раз. Привычки с повторением живут отдельно."}
+          </p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus size={17} /> Создать задачу
+        </Button>
       </header>
-
-      <form
-        onSubmit={handleAdd}
-        className="rounded-[26px] border border-line bg-surface p-4 shadow-card sm:p-5"
-      >
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            value={title}
-            maxLength={200}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Что нужно сделать?"
-            aria-label="Название новой задачи"
-            autoFocus
-          />
-          <div className="flex gap-2">
-            <Input
-              type="date"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-              aria-label="Дата новой задачи"
-              className="sm:w-44"
-            />
-            <Button type="submit" disabled={saving || !title.trim()}>
-              {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-ivory/40 border-t-ivory" /> : <Plus size={16} />}
-              Добавить
-            </Button>
-          </div>
-        </div>
-        <div className="mt-2">
-          <Textarea
-            value={note}
-            maxLength={2000}
-            rows={2}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Описание: детали, ссылки, что учесть (необязательно)"
-            aria-label="Описание новой задачи"
-            className="min-h-16"
-          />
-        </div>
-        <div className="mt-2 flex items-center gap-3 px-1 text-[11px] font-semibold">
-          <button
-            type="button"
-            onClick={() => setDueDate(today)}
-            className={cn(
-              "rounded-full px-2 py-1 transition",
-              dueDate === today ? "bg-forest-soft text-forest" : "text-muted hover:text-ink",
-            )}
-          >
-            Сегодня
-          </button>
-          <button
-            type="button"
-            onClick={() => setDueDate("")}
-            className={cn(
-              "rounded-full px-2 py-1 transition",
-              dueDate === "" ? "bg-forest-soft text-forest" : "text-muted hover:text-ink",
-            )}
-          >
-            Без даты
-          </button>
-        </div>
-      </form>
 
       {active.length === 0 ? (
         <EmptyState
           icon={<Sparkles size={26} />}
           title="Открытых задач нет"
-          description="Добавьте первое дело сверху — и оно появится здесь. Задачи можно отмечать выполненными и переносить на другую дату."
+          description="Нажмите «Создать задачу» — укажите название, описание и дату, если она важна. Задачи можно отмечать выполненными и возвращать в работу."
         />
       ) : (
         <div className="space-y-7">{groups.map((group) => renderGroup(group.key, group.title, group.hint, group.tasks))}</div>
@@ -324,6 +243,8 @@ export default function TasksPage() {
         title="Удалить задачу?"
         description={deleteTarget ? `Задача «${deleteTarget.title}» будет удалена.` : ""}
       />
+
+      <TaskFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
   );
 }
