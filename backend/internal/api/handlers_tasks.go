@@ -9,7 +9,7 @@ import (
 
 const (
 	maxTaskTitleLen = 200
-	maxTaskNoteLen  = 1000
+	maxTaskNoteLen  = 2000
 )
 
 type taskPayload struct {
@@ -118,7 +118,7 @@ func validateTask(payload taskPayload) (string, string, *time.Time, error) {
 
 	note := strings.TrimSpace(payload.Note)
 	if len([]rune(note)) > maxTaskNoteLen {
-		return "", "", nil, errors.New("Заметка не должна быть длиннее 1000 символов")
+		return "", "", nil, errors.New("Описание не должно быть длиннее 2000 символов")
 	}
 
 	dueDate, err := optionalDate(payload.DueDate)

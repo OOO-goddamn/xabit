@@ -8,7 +8,7 @@ import { TaskRow } from "@/components/task-row";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState, Skeleton } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { useClientToday } from "@/hooks/use-client-today";
 import { useRevalidateApi } from "@/hooks/use-revalidate-api";
@@ -24,6 +24,7 @@ export default function TasksPage() {
   const clientToday = useClientToday();
   const { data, error, mutate } = useSWR<Task[]>("/api/tasks");
   const [title, setTitle] = useState("");
+  const [note, setNote] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -45,9 +46,10 @@ export default function TasksPage() {
 
     setSaving(true);
     try {
-      await api.createTask({ title: trimmed, note: "", dueDate: dueDate || null, done: false });
+      await api.createTask({ title: trimmed, note: note.trim(), dueDate: dueDate || null, done: false });
       await revalidate();
       setTitle("");
+      setNote("");
       toast("Задача добавлена");
     } catch (requestError) {
       toast(errorMessage(requestError), "error");
@@ -236,6 +238,17 @@ export default function TasksPage() {
               Добавить
             </Button>
           </div>
+        </div>
+        <div className="mt-2">
+          <Textarea
+            value={note}
+            maxLength={2000}
+            rows={2}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="Описание: детали, ссылки, что учесть (необязательно)"
+            aria-label="Описание новой задачи"
+            className="min-h-16"
+          />
         </div>
         <div className="mt-2 flex items-center gap-3 px-1 text-[11px] font-semibold">
           <button

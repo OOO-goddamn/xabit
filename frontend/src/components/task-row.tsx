@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CalendarDays, Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 
 import { SortControls } from "@/components/sort-controls";
-import { Input } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/field";
 import type { Task, TaskInput } from "@/lib/types";
 import { cn, formatShortDate } from "@/lib/utils";
 
@@ -43,6 +43,7 @@ export function TaskRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
+  const [note, setNote] = useState(task.note);
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -50,6 +51,7 @@ export function TaskRow({
 
   function startEditing() {
     setTitle(task.title);
+    setNote(task.note);
     setDueDate(task.dueDate ?? "");
     setEditing(true);
   }
@@ -65,7 +67,7 @@ export function TaskRow({
     try {
       await onSave(task, {
         title: trimmed,
-        note: task.note,
+        note: note.trim(),
         dueDate: dueDate || null,
         done: task.done,
       });
@@ -81,7 +83,7 @@ export function TaskRow({
         onSubmit={handleSave}
         className="rounded-2xl border border-forest/25 bg-surface p-3 shadow-sm"
       >
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <Input
             value={title}
             maxLength={200}
@@ -97,25 +99,39 @@ export function TaskRow({
             className="sm:w-40"
           />
         </div>
-        <div className="mt-2 flex justify-end gap-1">
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            disabled={saving}
-            className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink"
-            aria-label="Отменить редактирование"
-            title="Отмена"
-          >
-            <X size={15} />
-          </button>
-          <button
-            type="submit"
-            disabled={saving || !title.trim()}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-forest-solid px-3 text-[12px] font-semibold text-ivory transition hover:bg-forest-deep disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            Сохранить
-          </button>
+        <div className="mt-2">
+          <Textarea
+            value={note}
+            maxLength={2000}
+            rows={3}
+            aria-label="Описание задачи"
+            placeholder="Описание: детали, ссылки, что учесть"
+            onChange={(event) => setNote(event.target.value)}
+            className="min-h-20"
+          />
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="text-[11px] text-muted">{note.length}/2000</span>
+          <div className="flex justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              disabled={saving}
+              className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink"
+              aria-label="Отменить редактирование"
+              title="Отмена"
+            >
+              <X size={15} />
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !title.trim()}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-forest-solid px-3 text-[12px] font-semibold text-ivory transition hover:bg-forest-deep disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              Сохранить
+            </button>
+          </div>
         </div>
       </form>
     );
@@ -167,10 +183,12 @@ export function TaskRow({
             <CalendarDays size={11} />
             {dateLabel(task, today)}
           </span>
-          {task.note ? (
-            <span className="truncate text-[11px] italic text-muted">{task.note}</span>
-          ) : null}
         </div>
+        {task.note ? (
+          <p className="mt-1 line-clamp-2 whitespace-pre-line break-words text-[12px] leading-snug text-muted">
+            {task.note}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5">
