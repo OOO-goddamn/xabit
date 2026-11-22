@@ -43,6 +43,7 @@ export default function TasksPage() {
         note: task.note,
         priority: task.priority,
         dueDate: task.dueDate,
+        dueTime: task.dueTime,
         done: !task.done,
       });
       await revalidate();

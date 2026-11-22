@@ -8,13 +8,14 @@ import type { Task } from "@/lib/types";
 import { cn, formatShortDate } from "@/lib/utils";
 
 function dateLabel(task: Task, today: string) {
+  const time = task.dueTime ? `, ${task.dueTime}` : "";
   if (!task.dueDate) {
     return "Без даты";
   }
   if (task.dueDate === today) {
-    return "Сегодня";
+    return `Сегодня${time}`;
   }
-  return formatShortDate(task.dueDate);
+  return `${formatShortDate(task.dueDate)}${time}`;
 }
 
 export function TaskRow({

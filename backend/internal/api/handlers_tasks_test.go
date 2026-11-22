@@ -29,6 +29,40 @@ func TestValidateTaskPriority(t *testing.T) {
 	}
 }
 
+func TestOptionalTime(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{name: "empty means no time", raw: ""},
+		{name: "blank means no time", raw: "   "},
+		{name: "valid time", raw: "09:30", want: "09:30"},
+		{name: "trims spaces", raw: " 18:05 ", want: "18:05"},
+		{name: "invalid time", raw: "9.30", wantErr: true},
+		{name: "out of range", raw: "25:00", wantErr: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			value, err := optionalTime(test.raw)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("optionalTime() error = %v, wantErr %v", err, test.wantErr)
+			}
+			if err == nil {
+				got := ""
+				if value != nil {
+					got = *value
+				}
+				if got != test.want {
+					t.Fatalf("optionalTime() = %q, want %q", got, test.want)
+				}
+			}
+		})
+	}
+}
+
 func TestOptionalDate(t *testing.T) {
 	empty := ""
 	blank := "   "

@@ -17,7 +17,18 @@ type taskPayload struct {
 	Note     string  `json:"note"`
 	Priority string  `json:"priority"`
 	DueDate  *string `json:"dueDate"`
+	DueTime  string  `json:"dueTime"`
 	Done     bool    `json:"done"`
+}
+
+// validatedTask keeps the parsed task fields together so handlers do not pass
+// half a dozen positional values around.
+type validatedTask struct {
+	Title    string
+	Note     string
+	Priority string
+	DueDate  *time.Time
+	DueTime  *string
 }
 
 func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
@@ -36,13 +47,13 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	title, note, priority, dueDate, err := validateTask(payload)
+	input, err := validateTask(payload)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	task, err := h.store.CreateTask(r.Context(), currentUserID(r), title, note, priority, dueDate)
+	task, err := h.store.CreateTask(r.Context(), currentUserID(r), input.Title, input.Note, input.Priority, input.DueDate, input.DueTime)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -63,13 +74,16 @@ func (h *Handler) updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	title, note, priority, dueDate, err := validateTask(payload)
+	input, err := validateTask(payload)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	task, err := h.store.UpdateTask(r.Context(), currentUserID(r), id, title, note, priority, dueDate, payload.Done)
+	task, err := h.store.UpdateTask(
+		r.Context(), currentUserID(r), id,
+		input.Title, input.Note, input.Priority, input.DueDate, input.DueTime, payload.Done,
+	)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -111,27 +125,43 @@ func (h *Handler) reorderTasks(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func validateTask(payload taskPayload) (string, string, string, *time.Time, error) {
+func validateTask(payload taskPayload) (validatedTask, error) {
+	var input validatedTask
+
 	title, err := validateName(payload.Title, "Название задачи", maxTaskTitleLen)
 	if err != nil {
-		return "", "", "", nil, err
+		return input, err
 	}
+	input.Title = title
 
 	note := strings.TrimSpace(payload.Note)
 	if len([]rune(note)) > maxTaskNoteLen {
-		return "", "", "", nil, errors.New("Описание не должно быть длиннее 2000 символов")
+		return input, errors.New("Описание не должно быть длиннее 2000 символов")
 	}
+	input.Note = note
 
 	priority, err := validateTaskPriority(payload.Priority)
 	if err != nil {
-		return "", "", "", nil, err
+		return input, err
 	}
+	input.Priority = priority
 
 	dueDate, err := optionalDate(payload.DueDate)
 	if err != nil {
-		return "", "", "", nil, err
+		return input, err
 	}
-	return title, note, priority, dueDate, nil
+	input.DueDate = dueDate
+
+	dueTime, err := optionalTime(payload.DueTime)
+	if err != nil {
+		return input, err
+	}
+	if dueTime != nil && dueDate == nil {
+		return input, errors.New("Сначала укажите дату задачи")
+	}
+	input.DueTime = dueTime
+
+	return input, nil
 }
 
 // validateTaskPriority treats an empty value as the default so older clients
@@ -163,4 +193,16 @@ func optionalDate(raw *string) (*time.Time, error) {
 		return nil, errors.New("Дата должна быть в формате YYYY-MM-DD")
 	}
 	return &date, nil
+}
+
+// optionalTime parses "HH:MM"; an empty value means the task has no time.
+func optionalTime(raw string) (*string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return nil, nil
+	}
+	if _, err := time.Parse("15:04", value); err != nil {
+		return nil, errors.New("Время должно быть в формате HH:MM")
+	}
+	return &value, nil
 }

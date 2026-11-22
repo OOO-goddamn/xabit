@@ -35,6 +35,7 @@ function TaskDialog({ onClose, task }: { onClose: () => void; task: Task | null 
   const [note, setNote] = useState(task?.note ?? "");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "normal");
   const [dueDate, setDueDate] = useState(task ? (task.dueDate ?? "") : today);
+  const [dueTime, setDueTime] = useState(task?.dueTime ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +58,7 @@ function TaskDialog({ onClose, task }: { onClose: () => void; task: Task | null 
         note: note.trim(),
         priority,
         dueDate: dueDate || null,
+        dueTime: dueDate ? dueTime : "",
         done: task?.done ?? false,
       };
 
@@ -119,14 +121,31 @@ function TaskDialog({ onClose, task }: { onClose: () => void; task: Task | null 
           <PriorityPicker value={priority} onChange={setPriority} disabled={saving} />
         </Field>
 
-        <Field label="Дата" htmlFor="task-date" hint="Можно оставить без даты">
+        <Field label="Дата и время" hint="Время можно не указывать">
           <div className="space-y-2">
-            <Input
-              id="task-date"
-              type="date"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                id="task-date"
+                type="date"
+                value={dueDate}
+                aria-label="Дата задачи"
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setDueDate(next);
+                  if (!next) {
+                    setDueTime("");
+                  }
+                }}
+              />
+              <Input
+                type="time"
+                value={dueTime}
+                disabled={!dueDate}
+                aria-label="Время задачи"
+                title={dueDate ? "Время задачи" : "Сначала выберите дату"}
+                onChange={(event) => setDueTime(event.target.value)}
+              />
+            </div>
             <div className="flex items-center gap-2 text-[11px] font-semibold">
               <button
                 type="button"
@@ -140,7 +159,10 @@ function TaskDialog({ onClose, task }: { onClose: () => void; task: Task | null 
               </button>
               <button
                 type="button"
-                onClick={() => setDueDate("")}
+                onClick={() => {
+                  setDueDate("");
+                  setDueTime("");
+                }}
                 className={cn(
                   "rounded-full px-2.5 py-1 transition",
                   dueDate === "" ? "bg-forest-soft text-forest" : "text-muted hover:text-ink",
@@ -149,7 +171,10 @@ function TaskDialog({ onClose, task }: { onClose: () => void; task: Task | null 
                 Без даты
               </button>
               {dueDate ? (
-                <span className="ml-auto text-muted">{formatLongDate(dueDate)}</span>
+                <span className="ml-auto text-muted">
+                  {formatLongDate(dueDate)}
+                  {dueTime ? `, ${dueTime}` : ""}
+                </span>
               ) : null}
             </div>
           </div>

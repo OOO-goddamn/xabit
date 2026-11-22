@@ -36,7 +36,7 @@ export function TodayTasks({
 
     setSaving(true);
     try {
-      await api.createTask({ title: trimmed, note: "", priority: "normal", dueDate: date, done: false });
+      await api.createTask({ title: trimmed, note: "", priority: "normal", dueDate: date, dueTime: "", done: false });
       await onChanged();
       setTitle("");
       toast("Задача добавлена");
@@ -55,6 +55,7 @@ export function TodayTasks({
         note: task.note,
         priority: task.priority,
         dueDate: task.dueDate,
+        dueTime: task.dueTime,
         done: true,
       });
       await onChanged();
@@ -120,9 +121,9 @@ export function TodayTasks({
               </span>
               <span className="shrink-0 text-[11px] font-semibold text-muted">
                 {task.dueDate === date
-                  ? date === today
-                    ? "Сегодня"
-                    : formatShortDate(task.dueDate)
+                  ? `${date === today ? "Сегодня" : formatShortDate(task.dueDate)}${
+                      task.dueTime ? `, ${task.dueTime}` : ""
+                    }`
                   : "Без даты"}
               </span>
             </li>

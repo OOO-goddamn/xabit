@@ -23,6 +23,7 @@ type Task struct {
 	Note      string    `json:"note"`
 	Priority  string    `json:"priority"`
 	DueDate   *string   `json:"dueDate"`
+	DueTime   string    `json:"dueTime"`
 	Done      bool      `json:"done"`
 	CreatedAt time.Time `json:"createdAt"`
 }

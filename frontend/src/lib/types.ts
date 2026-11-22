@@ -108,6 +108,7 @@ export interface Task {
   note: string;
   priority: TaskPriority;
   dueDate: string | null;
+  dueTime: string;
   done: boolean;
   createdAt: string;
 }
@@ -119,6 +120,7 @@ export interface TaskInput {
   note: string;
   priority: TaskPriority;
   dueDate: string | null;
+  dueTime: string;
   done: boolean;
 }
 
